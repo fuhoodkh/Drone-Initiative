@@ -1,16 +1,17 @@
-// Conditional import for sqlite3 (may fail on Vercel due to native bindings)
-let sqlite3;
-try {
-  sqlite3 = (await import('sqlite3')).default;
-} catch (error) {
-  console.warn('SQLite3 not available (may not work on Vercel):', error.message);
-  sqlite3 = null;
-}
-
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
+
+// Try to import sqlite3 (may fail on Vercel due to native bindings)
+let sqlite3 = null;
+try {
+  const sqlite3Module = await import('sqlite3');
+  sqlite3 = sqlite3Module.default;
+} catch (error) {
+  console.warn('⚠️ SQLite3 not available (may not work on Vercel):', error.message);
+  sqlite3 = null;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
