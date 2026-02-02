@@ -1,6 +1,13 @@
 // DI Platform (backend API): section guides + upload/download per section.
 // Storage: Backend API (files + metadata).
+
+// Immediate logging to verify script loads
+console.log('🚀 app.js script started loading');
+
+// Import API
 import * as API from './api.js';
+
+console.log('✅ API module imported successfully');
 
 function fmtBytes(n) {
   if (!Number.isFinite(n)) return "";
@@ -1082,8 +1089,8 @@ const i18n = {
       heroDesc:
         'كل قسم هنا يحتوي على <b>دليل كتابة</b> + زر <b>رفع</b> لأحدث نسخة معتمدة + زر <b>تحميل</b>. النسخ النهائية يجب أن تُحفظ أيضاً في <code>docs/90_PUBLISHED/</code> بنفس الاسم القياسي.',
       heroNote:
-        "التخزين محلي (على جهازك) عبر IndexedDB. للمشاركة بين عدة أجهزة/أشخاص نضيف لاحقاً تخزين سحابي/خادم.",
-      footerMuted: "v1.0 • منصة محلية لإدارة الرفع/التحميل",
+        "منصة موحدة لإدارة الوثائق والمستندات. جميع البيانات محفوظة على الخادم مع نظام صلاحيات متقدم.",
+      footerMuted: "v1.0 • منصة إدارة الوثائق",
     },
     labels: {
       purpose: "الهدف",
@@ -1142,8 +1149,8 @@ const i18n = {
       heroDesc:
         'Each section includes a <b>writing guide</b> + <b>Upload</b> (latest approved) + <b>Download</b>. Final approved files should also be saved in <code>docs/90_PUBLISHED/</code> with the standard filename.',
       heroNote:
-        "Storage is local to your browser via IndexedDB. For multi-device/team sharing, we can add cloud/server storage next.",
-      footerMuted: "v1.0 • Local-first Upload/Download Hub",
+        "Unified platform for document management. All data is stored on the server with advanced permission system.",
+      footerMuted: "v1.0 • Document Management Platform",
     },
     labels: {
       purpose: "Purpose",
@@ -1223,10 +1230,12 @@ function setLang(lang) {
 
   // Top-right actions
   const L = i18n[lang].labels;
-  const btnExport = document.getElementById("btnExport");
-  const importLabel = document.getElementById("importLabel");
-  if (btnExport) btnExport.textContent = L.export;
-  if (importLabel) importLabel.textContent = L.import;
+  
+  // Update logout button text (will be set up in initApp, just update text here)
+  const logoutBtn = document.getElementById('btnLogout');
+  if (logoutBtn) {
+    logoutBtn.textContent = lang === 'ar' ? 'تسجيل الخروج' : 'Logout';
+  }
 
   // Role select labels
   const roleSelect = document.getElementById("roleSelect");
@@ -1256,7 +1265,22 @@ function setLang(lang) {
   }
 
   updateRoleUi();
-  render();
+  
+  // Update user info in header
+  const user = API.getCurrentUser();
+  const userInfo = document.getElementById('userInfo');
+  if (userInfo && user) {
+    userInfo.textContent = `${user.username} (${user.role})`;
+  }
+  
+  // Logout button - set up event listener only once (in initApp)
+  // Text is updated in setLang() above
+  
+  render().then(() => {
+    console.log('✅ render() completed');
+  }).catch((err) => {
+    console.error('❌ render() failed:', err);
+  });
 }
 
 async function getSectionMeta(code) {
@@ -1330,6 +1354,244 @@ function closeGuide() {
   root.setAttribute("aria-hidden", "true");
 }
 
+// Share modal
+async function showShareModal(sectionCode) {
+  try {
+    console.log('🔗 Opening share modal for section:', sectionCode);
+    
+    const currentUser = API.getCurrentUser();
+    if (!currentUser) {
+      alert(currentLang === 'ar' ? 'يرجى تسجيل الدخول أولاً' : 'Please log in first');
+      return;
+    }
+    
+    // Get all users and current access list
+    let users = [];
+    let accessList = [];
+    
+    try {
+      users = await API.getAllUsers();
+      console.log('✅ Fetched users:', users);
+    } catch (error) {
+      console.error('❌ Error fetching users:', error);
+      alert(currentLang === 'ar' ? 'فشل تحميل قائمة المستخدمين' : 'Failed to load user list: ' + error.message);
+      return;
+    }
+    
+    try {
+      accessList = await API.getSectionAccess(sectionCode);
+      console.log('✅ Fetched access list:', accessList);
+    } catch (error) {
+      console.warn('⚠️ Error fetching access list (using empty):', error);
+      accessList = [];
+    }
+    
+    const accessibleUserIds = new Set(accessList.map(a => a.id));
+    
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.className = 'shareModal';
+    modal.innerHTML = `
+      <div class="shareModal__overlay"></div>
+      <div class="shareModal__content">
+        <div class="shareModal__header">
+          <h3>${currentLang === 'ar' ? 'مشاركة الوصول' : 'Share Access'}</h3>
+          <button class="shareModal__close">✕</button>
+        </div>
+        <div class="shareModal__body">
+          <p style="margin-bottom: 16px; color: #64748b; font-size: 14px;">
+            ${currentLang === 'ar' ? 'اختر المستخدمين للمشاركة معهم:' : 'Select users to share with:'}
+          </p>
+          <div class="shareModal__users">
+            ${users.filter(u => u.id !== currentUser.id).map(user => `
+              <label class="shareModal__user">
+                <input type="checkbox" ${accessibleUserIds.has(user.id) ? 'checked' : ''} data-user-id="${user.id}" data-username="${user.username}" />
+                <span>${escapeHtml(user.username)}</span>
+                <span class="shareModal__role">${user.role}</span>
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        <div class="shareModal__footer">
+          <button class="btn btn--secondary shareModal__cancel">${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          <button class="btn btn--primary shareModal__save">${currentLang === 'ar' ? 'حفظ' : 'Save'}</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Close handlers
+    const close = () => {
+      modal.remove();
+    };
+    modal.querySelector('.shareModal__overlay').addEventListener('click', close);
+    modal.querySelector('.shareModal__close').addEventListener('click', close);
+    modal.querySelector('.shareModal__cancel').addEventListener('click', close);
+    
+    // Save handler
+    modal.querySelector('.shareModal__save').addEventListener('click', async () => {
+      const checkboxes = modal.querySelectorAll('input[type="checkbox"]');
+      const toShare = [];
+      const toRevoke = [];
+      
+      checkboxes.forEach(cb => {
+        const userId = parseInt(cb.dataset.userId);
+        const username = cb.dataset.username;
+        if (cb.checked && !accessibleUserIds.has(userId)) {
+          toShare.push({ userId, username });
+        } else if (!cb.checked && accessibleUserIds.has(userId)) {
+          toRevoke.push({ userId });
+        }
+      });
+      
+      try {
+        console.log('💾 Saving sharing changes...');
+        console.log('  - To share:', toShare);
+        console.log('  - To revoke:', toRevoke);
+        
+        // Share new users
+        for (const { username } of toShare) {
+          try {
+            await API.shareSection(sectionCode, username);
+            console.log(`✅ Shared ${sectionCode} with ${username}`);
+          } catch (error) {
+            console.error(`❌ Error sharing with ${username}:`, error);
+            throw error;
+          }
+        }
+        
+        // Revoke access
+        for (const { userId } of toRevoke) {
+          try {
+            await API.revokeAccess(sectionCode, userId);
+            console.log(`✅ Revoked access for user ${userId}`);
+          } catch (error) {
+            console.error(`❌ Error revoking access for user ${userId}:`, error);
+            throw error;
+          }
+        }
+        
+        console.log('✅ Sharing changes saved successfully');
+        close();
+        await render();
+      } catch (error) {
+        console.error('❌ Error saving sharing changes:', error);
+        const errorMsg = error.message || (currentLang === 'ar' ? 'فشل تحديث المشاركة' : 'Failed to update sharing');
+        alert(errorMsg);
+      }
+    });
+  } catch (error) {
+    console.error('Error showing share modal:', error);
+    alert(error.message || 'Failed to load sharing options');
+  }
+}
+
+// Metadata editing modal
+async function showMetaModal(sectionCode) {
+  try {
+    const current = (await getSectionMeta(sectionCode)) || {};
+    const L = i18n[currentLang].labels;
+    
+    const statusOptions = [
+      { value: 'draft', label: currentLang === 'ar' ? 'مسودة' : 'Draft' },
+      { value: 'internal', label: currentLang === 'ar' ? 'داخلي' : 'Internal' },
+      { value: 'external', label: currentLang === 'ar' ? 'خارجي' : 'External' },
+      { value: 'approved', label: currentLang === 'ar' ? 'معتمد' : 'Approved' },
+      { value: 'published', label: currentLang === 'ar' ? 'منشور' : 'Published' },
+      { value: 'archived', label: currentLang === 'ar' ? 'مؤرشف' : 'Archived' }
+    ];
+    
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.className = 'metaModal';
+    modal.innerHTML = `
+      <div class="metaModal__overlay"></div>
+      <div class="metaModal__content">
+        <div class="metaModal__header">
+          <h3>${currentLang === 'ar' ? 'تحديث البيانات الوصفية' : 'Edit Metadata'}</h3>
+          <button class="metaModal__close">✕</button>
+        </div>
+        <div class="metaModal__body">
+          <form class="metaModal__form" id="metaForm">
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.metaEditPromptOwner}</label>
+              <input type="text" class="metaModal__input" id="metaOwner" value="${escapeHtml(current.owner || '')}" placeholder="${L.metaEditPromptOwner}" />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.metaEditPromptReviewer}</label>
+              <input type="text" class="metaModal__input" id="metaReviewer" value="${escapeHtml(current.reviewer || '')}" placeholder="${L.metaEditPromptReviewer}" />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.metaEditPromptApprover}</label>
+              <input type="text" class="metaModal__input" id="metaApprover" value="${escapeHtml(current.approver || '')}" placeholder="${L.metaEditPromptApprover}" />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.metaEditPromptVersion}</label>
+              <input type="text" class="metaModal__input" id="metaVersion" value="${escapeHtml(current.version || 'v1.0')}" placeholder="v1.0" />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.metaEditPromptStatus}</label>
+              <select class="metaModal__select" id="metaStatus">
+                ${statusOptions.map(opt => `
+                  <option value="${opt.value}" ${(current.status || 'draft') === opt.value ? 'selected' : ''}>${opt.label}</option>
+                `).join('')}
+              </select>
+              <div class="metaModal__help">${currentLang === 'ar' ? 'اختر حالة الوثيقة من القائمة' : 'Select document status from dropdown'}</div>
+            </div>
+          </form>
+        </div>
+        <div class="metaModal__footer">
+          <button class="btn btn--secondary metaModal__cancel">${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          <button class="btn btn--primary metaModal__save">${currentLang === 'ar' ? 'حفظ' : 'Save'}</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Close handlers
+    const close = () => {
+      modal.remove();
+    };
+    modal.querySelector('.metaModal__overlay').addEventListener('click', close);
+    modal.querySelector('.metaModal__close').addEventListener('click', close);
+    modal.querySelector('.metaModal__cancel').addEventListener('click', close);
+    
+    // Save handler
+    modal.querySelector('.metaModal__save').addEventListener('click', async () => {
+      const owner = document.getElementById('metaOwner').value.trim();
+      const reviewer = document.getElementById('metaReviewer').value.trim();
+      const approver = document.getElementById('metaApprover').value.trim();
+      const version = document.getElementById('metaVersion').value.trim();
+      const status = document.getElementById('metaStatus').value;
+      
+      const updatedMeta = {
+        ...current,
+        owner: owner || undefined,
+        reviewer: reviewer || undefined,
+        approver: approver || undefined,
+        version: version || 'v1.0',
+        status: status || 'draft',
+      };
+      
+      try {
+        await API.updateSectionMeta(sectionCode, updatedMeta);
+        close();
+        await render();
+      } catch (error) {
+        console.error('Error updating metadata:', error);
+        alert(error.message || 'Failed to update metadata');
+      }
+    });
+  } catch (error) {
+    console.error('Error showing metadata modal:', error);
+    alert(error.message || 'Failed to load metadata');
+  }
+}
+
 async function render() {
   try {
     const grid = document.getElementById("sectionsGrid");
@@ -1348,10 +1610,73 @@ async function render() {
       return;
     }
     
+    // Get accessible sections based on user role
+    let accessibleSections = [];
+    const user = API.getCurrentUser();
+    if (!user) {
+      console.warn('No user found, redirecting to login');
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    try {
+      const mySections = await API.getMySections();
+      console.log('📋 Fetched accessible sections:', mySections);
+      
+      // Check if user is admin/editor OR if API returned '*' marker
+      if (user.role === 'admin' || user.role === 'editor') {
+        // Admins and editors see all sections
+        accessibleSections = SECTIONS.map(s => s.code);
+        console.log('✅ Admin/Editor: Showing all', accessibleSections.length, 'sections');
+      } else if (mySections && Array.isArray(mySections) && mySections.length > 0) {
+        // Viewers only see shared sections
+        accessibleSections = mySections;
+        console.log('✅ Viewer: Showing', mySections.length, 'shared sections');
+      } else {
+        // No sections returned - for admin/editor, show all; for viewer, show none
+        if (user.role === 'admin' || user.role === 'editor') {
+          accessibleSections = SECTIONS.map(s => s.code);
+          console.log('⚠️ API returned empty, but user is admin/editor: Showing all sections');
+        } else {
+          console.log('⚠️ Viewer with no shared sections');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching accessible sections:', error);
+      // Fallback: show all for admin/editor
+      if (user.role === 'admin' || user.role === 'editor') {
+        accessibleSections = SECTIONS.map(s => s.code);
+        console.log('✅ Fallback: Showing all sections for admin/editor');
+      } else {
+        console.warn('⚠️ Viewer: Cannot fetch sections, showing none');
+      }
+    }
+    
+    // Ensure admin/editor always have access to all sections
+    if ((user.role === 'admin' || user.role === 'editor') && accessibleSections.length === 0) {
+      console.warn('⚠️ Admin/Editor with no accessible sections - forcing all sections');
+      accessibleSections = SECTIONS.map(s => s.code);
+    }
+    
+    // Filter sections
+    const sectionsToRender = SECTIONS.filter(s => accessibleSections.includes(s.code));
+    
+    console.log(`📊 Filtered: ${sectionsToRender.length} sections to render from ${SECTIONS.length} total sections`);
+    
+    if (sectionsToRender.length === 0) {
+      const message = currentLang === 'ar' 
+        ? '<p style="font-size: 18px; margin-bottom: 8px;">لا توجد أقسام متاحة</p><p style="font-size: 14px;">اتصل بالمسؤول لمنحك الوصول إلى الأقسام.</p>'
+        : '<p style="font-size: 18px; margin-bottom: 8px;">No sections available</p><p style="font-size: 14px;">Contact an administrator to grant you access to sections.</p>';
+      grid.innerHTML = `<div style="padding: 3rem; text-align: center; color: #64748b;">${message}</div>`;
+      return;
+    }
+    
+    console.log(`📋 Rendering ${sectionsToRender.length} of ${SECTIONS.length} sections`);
+    
     const L = i18n[currentLang].labels;
     grid.innerHTML = ""; // Clear loading
 
-    for (const s of SECTIONS) {
+    for (const s of sectionsToRender) {
     const t = sectionText(s);
     const node = tpl.content.cloneNode(true);
 
@@ -1395,6 +1720,7 @@ async function render() {
     const approverEl = node.querySelector("[data-approver]");
     const versionEl = node.querySelector("[data-version]");
     const metaEditBtn = node.querySelector("[data-meta-edit]");
+    const shareBtn = node.querySelector("[data-share]");
 
     if (statusEl) {
       statusEl.textContent = statusLabel;
@@ -1415,7 +1741,17 @@ async function render() {
       downloadBtn.disabled = true;
       clearBtn.disabled = true;
     } else {
-      const updated = new Date(meta.updatedAt).toLocaleString(currentLang === "ar" ? "ar" : "en");
+      let updated = "—";
+      if (meta.updatedAt) {
+        try {
+          const date = new Date(meta.updatedAt);
+          if (!isNaN(date.getTime())) {
+            updated = date.toLocaleString(currentLang === "ar" ? "ar" : "en");
+          }
+        } catch (e) {
+          console.warn('Invalid date:', meta.updatedAt);
+        }
+      }
       metaEl.innerHTML =
         `<div><b>${L.name}:</b> ${escapeHtml(meta.filename || "")}</div>` +
         `<div><b>${L.size}:</b> ${fmtBytes(meta.size)}</div>` +
@@ -1425,43 +1761,26 @@ async function render() {
     }
 
     uploadInput.disabled = isViewer;
+    
+    // Sharing button (admin/editor only)
+    if (shareBtn && !isViewer) {
+      shareBtn.innerHTML = '🔗';
+      shareBtn.title = currentLang === 'ar' ? 'مشاركة الوصول' : 'Share access';
+      shareBtn.addEventListener("click", async () => {
+        await showShareModal(s.code);
+      });
+    } else if (shareBtn) {
+      shareBtn.classList.add("hidden");
+    }
+    
     if (isViewer) {
       node.querySelector("[data-upload-label]").classList.add("hidden");
       clearBtn.classList.add("hidden");
       if (metaEditBtn) metaEditBtn.classList.add("hidden");
     } else if (metaEditBtn) {
       metaEditBtn.textContent = L.metaEdit;
-      metaEditBtn.addEventListener("click", async () => {
-        const current = (await getSectionMeta(s.code)) || {};
-        const owner = prompt(L.metaEditPromptOwner, current.owner || "");
-        if (owner === null) return;
-        const reviewer = prompt(L.metaEditPromptReviewer, current.reviewer || "");
-        if (reviewer === null) return;
-        const approver = prompt(L.metaEditPromptApprover, current.approver || "");
-        if (approver === null) return;
-        const version = prompt(L.metaEditPromptVersion, current.version || "v1.0");
-        if (version === null) return;
-        let status = (current.status || "draft");
-        const rawStatus = prompt(L.metaEditPromptStatus, status);
-        if (rawStatus === null) return;
-        const normalized = String(rawStatus).trim().toLowerCase();
-        const allowed = ["draft","internal","external","approved","published","archived"];
-        if (allowed.includes(normalized)) status = normalized;
-        const updatedMeta = {
-          ...current,
-          owner,
-          reviewer,
-          approver,
-          version,
-        status,
-      };
-      try {
-        await API.updateSectionMeta(s.code, updatedMeta);
-        await render();
-      } catch (error) {
-        console.error('Error updating metadata:', error);
-        alert(error.message || 'Failed to update metadata');
-      }
+      metaEditBtn.addEventListener("click", () => {
+        showMetaModal(s.code);
       });
     }
 
@@ -1550,7 +1869,7 @@ async function render() {
     grid.appendChild(node);
     }
     
-    console.log(`Rendered ${SECTIONS.length} sections`);
+    console.log(`✅ Rendered ${sectionsToRender.length} sections`);
   } catch (error) {
     console.error('Render error:', error);
     const grid = document.getElementById("sectionsGrid");
@@ -1569,18 +1888,16 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+function logout() {
+  API.setAuthToken(null, null);
+  window.location.href = '/login.html';
+}
+
 document.getElementById("btnLang").addEventListener("click", () => {
   setLang(currentLang === "ar" ? "en" : "ar");
 });
 
 // Export/Import removed - use backend API directly
-document.getElementById("btnExport").addEventListener("click", () => {
-  alert("Export functionality moved to backend. Use API endpoints or admin panel.");
-});
-
-document.getElementById("importFile").addEventListener("change", () => {
-  alert("Import functionality moved to backend. Use API endpoints or admin panel.");
-});
 
 document.getElementById("guideOverlay").addEventListener("click", () => closeGuide());
 document.getElementById("guideCloseBtn").addEventListener("click", () => closeGuide());
@@ -1588,17 +1905,8 @@ document.getElementById("guideCloseBtn").addEventListener("click", () => closeGu
 const roleSelectEl = document.getElementById("roleSelect");
 function updateRoleUi() {
   const L = i18n[currentLang].labels;
-  const btnExport = document.getElementById("btnExport");
-  const importLabel = document.getElementById("importLabel");
   const isViewer = currentRole === "viewer";
 
-  if (btnExport) {
-    btnExport.disabled = isViewer;
-    btnExport.classList.toggle("hidden", isViewer);
-  }
-  if (importLabel) {
-    importLabel.classList.toggle("hidden", isViewer);
-  }
   if (roleSelectEl) {
     // Viewers should come from URL link; hide selector for them
     if (isViewer) {
@@ -1686,56 +1994,69 @@ function showLoginModal() {
   }
 }
 
+// Log script execution
+console.log('📄 app.js executing, readyState:', document.readyState);
+
 // Initialize on DOM ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp);
+  console.log('⏳ Waiting for DOMContentLoaded...');
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('✅ DOMContentLoaded fired');
+    initApp();
+  });
 } else {
+  console.log('✅ DOM already ready, initializing immediately');
   initApp();
 }
 
 async function initApp() {
   try {
+    console.log('🚀 Starting app initialization...');
+    
+    // Check authentication first
+    const user = API.getCurrentUser();
+    if (!user) {
+      console.warn('⚠️ No user found, redirecting to login');
+      window.location.href = '/login.html';
+      return;
+    }
+    
+    console.log('✅ User authenticated:', user.username, 'role:', user.role);
+    
     // Wait for DOM elements
     const grid = document.getElementById("sectionsGrid");
     const tpl = document.getElementById("sectionCardTpl");
     
     if (!grid || !tpl) {
-      console.log('Waiting for DOM elements...');
+      console.warn('⏳ DOM elements not ready, retrying...');
       setTimeout(initApp, 50);
       return;
     }
     
-    console.log('✓ DOM ready, initializing app...');
+    console.log('✅ DOM elements ready');
     
-    // Always initialize UI first
+    // Set user role
+    currentRole = user.role || 'admin';
+    console.log('✅ Current role set to:', currentRole);
+    
+    // Initialize UI
+    console.log('✅ Initializing UI...');
     setLang("ar");
+    updateRoleUi();
     
-    // Then check auth (non-blocking, don't wait)
-    checkAuth().then((isAuth) => {
-      if (isAuth) {
-        const user = API.getCurrentUser();
-        if (user) {
-          currentRole = user.role || 'admin';
-        }
-        updateRoleUi();
-        console.log('✓ Authenticated as:', currentRole);
-      } else {
-        console.log('ℹ Not authenticated, showing login modal');
-        showLoginModal();
-      }
-    }).catch((err) => {
-      console.warn('Auth check failed, continuing without auth:', err);
-      showLoginModal();
-    });
-  } catch (error) {
-    console.error('✗ Initialization error:', error);
-    // Show UI anyway - user can login
-    try {
-      setLang("ar");
-      showLoginModal();
-    } catch (e) {
-      console.error('✗ Failed to show UI:', e);
+    // Set up logout button event listener (only once)
+    const logoutBtn = document.getElementById('btnLogout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', logout);
     }
+    
+    console.log('✅ App initialized successfully for user:', user.username, 'role:', currentRole);
+    console.log('📊 Total sections defined:', SECTIONS.length);
+  } catch (error) {
+    console.error('❌ Initialization error:', error);
+    console.error('Error stack:', error.stack);
+    // Redirect to login on error
+    window.location.href = '/login.html';
   }
 }
 

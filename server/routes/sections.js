@@ -31,7 +31,28 @@ router.get('/:sectionCode', verifyToken, async (req, res) => {
       [sectionCode]
     );
     
-    res.json({ ...meta, links });
+    // Map snake_case to camelCase for frontend
+    const response = {
+      section_code: meta.section_code,
+      owner: meta.owner,
+      reviewer: meta.reviewer,
+      approver: meta.approver,
+      status: meta.status,
+      version: meta.version,
+      filename: meta.filename,
+      size: meta.filesize,
+      mime_type: meta.mime_type,
+      updatedAt: meta.updated_at,
+      updated_by: meta.updated_by,
+      links: links.map(link => ({
+        id: link.id,
+        title: link.title,
+        url: link.url,
+        createdAt: link.created_at
+      }))
+    };
+    
+    res.json(response);
   } catch (error) {
     console.error('Error fetching section:', error);
     res.status(500).json({ error: 'Failed to fetch section' });

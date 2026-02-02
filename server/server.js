@@ -8,6 +8,7 @@ import { initDb } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { sectionsRouter } from './routes/sections.js';
 import { filesRouter } from './routes/files.js';
+import { permissionsRouter } from './routes/permissions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from platform directory
 app.use(express.static(path.join(__dirname, '..', 'platform')));
+// Also serve docs directory for logo and other assets
+app.use('/docs', express.static(path.join(__dirname, '..', 'docs')));
 
 // File upload configuration
 const storage = multer.diskStorage({
@@ -64,6 +67,7 @@ await initDb();
 app.use('/api/auth', authRouter);
 app.use('/api/sections', sectionsRouter);
 app.use('/api/files', filesRouter(upload));
+app.use('/api/permissions', permissionsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -70,6 +70,21 @@ export async function initDb() {
           )
         `);
         
+        // Section permissions (for sharing)
+        db.run(`
+          CREATE TABLE IF NOT EXISTS section_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            section_code TEXT NOT NULL,
+            user_id INTEGER NOT NULL,
+            permission_type TEXT NOT NULL DEFAULT 'view',
+            granted_by TEXT,
+            granted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(section_code, user_id),
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (section_code) REFERENCES sections_meta(section_code)
+          )
+        `);
+        
         // Audit log
         db.run(`
           CREATE TABLE IF NOT EXISTS audit_log (
@@ -82,13 +97,8 @@ export async function initDb() {
           )
         `);
         
-        // Create default admin user (password: admin123 - change in production!)
-        db.run(`
-          INSERT OR IGNORE INTO users (username, password_hash, role)
-          VALUES ('admin', '$2a$10$rOzJqZqZqZqZqZqZqZqZqOeZqZqZqZqZqZqZqZqZqZqZqZqZqZqZq', 'admin')
-        `, (err) => {
-          if (err) console.error('Error creating default admin:', err);
-        });
+        // Default admin user will be created by init-users.js script
+        // This ensures proper bcrypt hashing
       });
       
       resolve();

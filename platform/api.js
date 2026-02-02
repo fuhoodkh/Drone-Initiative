@@ -144,44 +144,6 @@ export async function downloadSectionFile(sectionCode) {
   
   return { blob, filename };
 }
-  const options = {
-    method: 'GET',
-    headers: {},
-  };
-  
-  if (authToken) {
-    options.headers['Authorization'] = `Bearer ${authToken}`;
-  }
-  
-  const res = await fetch(url, options);
-  
-  if (!res.ok) {
-    if (res.status === 404) {
-      return null;
-    }
-    const error = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(error.error || `HTTP ${res.status}`);
-  }
-  
-  const blob = await res.blob();
-  const contentDisposition = res.headers.get('Content-Disposition');
-  let filename = `${sectionCode}.pdf`;
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="?(.+)"?/i);
-    if (match) filename = match[1];
-  }
-  
-  const urlObj = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = urlObj;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(urlObj), 500);
-  
-  return true;
-}
 
 export async function deleteSectionFile(sectionCode) {
   return apiRequest('DELETE', `/files/${sectionCode}`);
@@ -194,4 +156,25 @@ export async function addSectionLink(sectionCode, title, url) {
 
 export async function removeSectionLink(sectionCode, linkId) {
   return apiRequest('DELETE', `/sections/${sectionCode}/links/${linkId}`);
+}
+
+// Permissions
+export async function getMySections() {
+  return apiRequest('GET', '/permissions/my-sections');
+}
+
+export async function shareSection(sectionCode, username, permissionType = 'view') {
+  return apiRequest('POST', `/permissions/${sectionCode}/share`, { username, permissionType });
+}
+
+export async function revokeAccess(sectionCode, userId) {
+  return apiRequest('DELETE', `/permissions/${sectionCode}/share/${userId}`);
+}
+
+export async function getSectionAccess(sectionCode) {
+  return apiRequest('GET', `/permissions/${sectionCode}/access`);
+}
+
+export async function getAllUsers() {
+  return apiRequest('GET', '/permissions/users/list');
 }

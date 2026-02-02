@@ -25,7 +25,7 @@
     </div>
     <header class="topbar">
       <div class="topbar__brand">
-        <img class="topbar__logo" src="../docs/30_BRAND/logo/di-mark.svg" alt="DI" />
+        <img class="topbar__logo" src="/docs/30_BRAND/logo/di-mark.svg" alt="DI" onerror="this.style.display='none'" />
         <div>
           <div class="topbar__title">Drone Initiative</div>
           <div class="topbar__subtitle" id="topSubtitle"></div>
@@ -34,10 +34,9 @@
 
       <div class="topbar__actions">
         <select class="roleSelect" id="roleSelect"></select>
-        <button class="btn btn--secondary" id="btnExport"></button>
-        <label class="btn btn--secondary" id="importLabel" for="importFile"></label>
-        <input id="importFile" type="file" accept="application/json" hidden />
         <button class="btn btn--primary" id="btnLang">EN</button>
+        <button class="btn btn--ghost btn--sm" id="btnLogout">Logout</button>
+        <span id="userInfo" class="topbar__userInfo"></span>
       </div>
     </header>
 
@@ -96,7 +95,10 @@
               <span data-approver></span>
               <span data-version></span>
             </div>
-            <button class="btn btn--ghost btn--sm" data-meta-edit></button>
+            <div class="metaRow__actions">
+              <button class="btn btn--ghost btn--sm" data-share title="Share access"></button>
+              <button class="btn btn--ghost btn--sm" data-meta-edit></button>
+            </div>
           </div>
 
           <div class="kv">
