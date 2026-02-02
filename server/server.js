@@ -17,7 +17,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Ensure uploads directory exists
-const UPLOADS_DIR = path.join(__dirname, 'uploads');
+// For Vercel: use /tmp/uploads (only writable location)
+// For local: use server/uploads
+const UPLOADS_DIR = process.env.VERCEL 
+  ? '/tmp/uploads' 
+  : path.join(__dirname, 'uploads');
 
 // Middleware
 app.use(cors());
@@ -95,8 +99,12 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize database and start server
-async function startServer() {
+// Initialize database and start server (for local development)
+let dbInitialized = false;
+
+async function initializeApp() {
+  if (dbInitialized) return;
+  
   try {
     // Ensure uploads directory exists
     await fs.mkdir(UPLOADS_DIR, { recursive: true });
@@ -105,20 +113,45 @@ async function startServer() {
     // Initialize database
     await initDb();
     console.log('✓ Database initialized');
-
-    // Start server
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✓ Server running on port ${PORT}`);
-      console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`✓ Platform files: ${path.join(__dirname, '..', 'platform')}`);
-      console.log(`✓ API endpoints available at http://localhost:${PORT}/api`);
-      console.log(`✓ Test: http://localhost:${PORT}/api/health`);
-    });
+    dbInitialized = true;
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
-    process.exit(1);
+    console.error('❌ Failed to initialize app:', error);
+    throw error;
   }
 }
 
-// Start the server
-startServer();
+// For Vercel/serverless: initialize on first request
+if (process.env.VERCEL) {
+  app.use(async (req, res, next) => {
+    if (!dbInitialized) {
+      await initializeApp();
+    }
+    next();
+  });
+}
+
+// For local development: start the server
+if (!process.env.VERCEL) {
+  async function startServer() {
+    try {
+      await initializeApp();
+      
+      // Start server
+      app.listen(PORT, '0.0.0.0', () => {
+        console.log(`✓ Server running on port ${PORT}`);
+        console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`✓ Platform files: ${path.join(__dirname, '..', 'platform')}`);
+        console.log(`✓ API endpoints available at http://localhost:${PORT}/api`);
+        console.log(`✓ Test: http://localhost:${PORT}/api/health`);
+      });
+    } catch (error) {
+      console.error('❌ Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+  
+  startServer();
+}
+
+// Export app for Vercel
+export default app;

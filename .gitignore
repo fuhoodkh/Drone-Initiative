@@ -16,6 +16,7 @@ server/data/
 
 # Uploads
 server/uploads/
+/tmp/
 
 # Logs
 *.log

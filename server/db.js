@@ -7,7 +7,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DB_DIR = path.join(__dirname, 'data');
+// For Vercel: use /tmp for database (only writable location)
+// For local: use data directory
+const DB_DIR = process.env.VERCEL 
+  ? '/tmp/data' 
+  : path.join(__dirname, 'data');
 const DB_PATH = path.join(DB_DIR, 'platform.db');
 
 let db = null;
