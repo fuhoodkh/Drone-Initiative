@@ -1,0 +1,30 @@
+<svg width="960" height="256" viewBox="0 0 960 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="40" y1="40" x2="216" y2="216" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D7FF9"/>
+      <stop offset="1" stop-color="#15B8A6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Mark -->
+  <rect x="24" y="24" width="208" height="208" rx="56" fill="#0B1220"/>
+  <path d="M128 76c-6.1 0-11 4.9-11 11v30H87c-6.1 0-11 4.9-11 11s4.9 11 11 11h30v30c0 6.1 4.9 11 11 11s11-4.9 11-11v-30h30c6.1 0 11-4.9 11-11s-4.9-11-11-11h-30V87c0-6.1-4.9-11-11-11z" fill="url(#g1)"/>
+  <circle cx="128" cy="128" r="18" fill="#FFFFFF"/>
+  <circle cx="128" cy="128" r="8" fill="#0B1220"/>
+
+  <!-- Wordmark -->
+  <g fill="#0B1220">
+    <path d="M308 80h70c44 0 76 28 76 68s-32 68-76 68h-70V80zm68 112c24 0 40-16 40-44s-16-44-40-44h-28v88h28z"/>
+    <path d="M486 80h38v136h-38V80z"/>
+  </g>
+
+  <g fill="#334155">
+    <path d="M308 44h312v20H308V44z"/>
+    <path d="M308 224h376v20H308v-20z"/>
+  </g>
+
+  <g fill="#334155">
+    <text x="556" y="142" font-family="Inter, Arial, sans-serif" font-size="22">Drone Initiative</text>
+    <text x="556" y="170" font-family="Inter, Arial, sans-serif" font-size="14">Summer Drone Program</text>
+  </g>
+</svg>

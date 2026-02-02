@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drone Initiative — Template (EN)</title>
+    <style>
+      :root{
+        --midnight:#0B1220;
+        --sky:#2D7FF9;
+        --aqua:#15B8A6;
+        --sand:#F5F1E8;
+        --ink:#111827;
+        --slate:#334155;
+        --mist:#E5E7EB;
+        --white:#FFFFFF;
+      }
+      @page { size: A4; margin: 20mm; }
+      *{ box-sizing:border-box; }
+      body{
+        margin:0;
+        font-family: Inter, Arial, sans-serif;
+        color:var(--ink);
+        background:var(--white);
+        line-height:1.6;
+      }
+      header{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:16px;
+        padding-bottom:14px;
+        border-bottom:2px solid var(--mist);
+      }
+      .brand{
+        display:flex;
+        align-items:center;
+        gap:12px;
+      }
+      .brand img{ width:56px; height:56px; }
+      .brand .name{ font-weight:700; color:var(--midnight); }
+      .meta{
+        text-align:right;
+        color:var(--slate);
+        font-size:12px;
+      }
+      h1{ margin:18px 0 6px; font-size:28px; color:var(--midnight); }
+      h2{ margin:16px 0 6px; font-size:20px; color:var(--midnight); }
+      h3{ margin:12px 0 6px; font-size:16px; color:var(--midnight); }
+      .callout{
+        margin:14px 0;
+        padding:12px 14px;
+        border:1px solid var(--mist);
+        border-left:6px solid var(--sky);
+        background: #F8FAFF;
+        border-radius:10px;
+      }
+      table{
+        width:100%;
+        border-collapse:collapse;
+        margin:10px 0 16px;
+      }
+      th{
+        background:var(--midnight);
+        color:var(--white);
+        padding:10px;
+        font-weight:700;
+        text-align:left;
+      }
+      td{
+        border:1px solid var(--mist);
+        padding:10px;
+        vertical-align:top;
+      }
+      footer{
+        position:fixed;
+        bottom:12mm;
+        left:20mm;
+        right:20mm;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        color:var(--slate);
+        font-size:11px;
+        border-top:1px solid var(--mist);
+        padding-top:8px;
+      }
+      .tag{
+        display:inline-block;
+        padding:2px 8px;
+        border-radius:999px;
+        border:1px solid var(--mist);
+        color:var(--slate);
+        font-size:11px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <img src="../30_BRAND/logo/di-mark.svg" alt="DI" />
+        <div>
+          <div class="name">Drone Initiative</div>
+          <div class="tag">Summer Drone Program</div>
+        </div>
+      </div>
+      <div class="meta">
+        <div>Version: <b>v1.0</b></div>
+        <div>Date: <b>YYYY-MM-DD</b></div>
+        <div>Owner: <b>Team/Owner name</b></div>
+      </div>
+    </header>
+
+    <main>
+      <h1>Document Title</h1>
+      <div class="callout">
+        <b>Executive summary:</b>
+        Write 5–7 lines: goal, audience, duration, location, and expected outcomes.
+      </div>
+
+      <h2>Scope</h2>
+      <ul>
+        <li>What this document covers</li>
+        <li>What it does not cover</li>
+      </ul>
+
+      <h2>Timeline</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Week</th>
+            <th>Track</th>
+            <th>Outcomes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Basics + Safety</td>
+            <td>Safety quiz + core flight skills</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Risks & safety</h2>
+      <ul>
+        <li>List 3–5 specific risks with mitigation steps.</li>
+      </ul>
+    </main>
+
+    <footer>
+      <div>Drone Initiative — DI</div>
+      <div>DI_<span style="font-family:monospace">DOC</span>_EN_YYYY-MM-DD_v1.0</div>
+    </footer>
+  </body>
+</html>
+

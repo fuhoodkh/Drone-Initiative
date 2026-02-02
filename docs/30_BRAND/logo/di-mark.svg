@@ -1,0 +1,14 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="96" y1="96" x2="416" y2="416" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2D7FF9"/>
+      <stop offset="1" stop-color="#15B8A6"/>
+    </linearGradient>
+  </defs>
+  <rect x="64" y="64" width="384" height="384" rx="96" fill="#0B1220"/>
+  <!-- Drone prop cross -->
+  <path d="M256 150c-9.4 0-17 7.6-17 17v48h-48c-9.4 0-17 7.6-17 17s7.6 17 17 17h48v48c0 9.4 7.6 17 17 17s17-7.6 17-17v-48h48c9.4 0 17-7.6 17-17s-7.6-17-17-17h-48v-48c0-9.4-7.6-17-17-17z" fill="url(#g1)"/>
+  <!-- Center camera dot -->
+  <circle cx="256" cy="256" r="26" fill="#FFFFFF"/>
+  <circle cx="256" cy="256" r="12" fill="#0B1220"/>
+</svg>

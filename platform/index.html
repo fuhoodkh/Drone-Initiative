@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Drone Initiative — الوثائق (منصة واحدة)</title>
+    <meta name="theme-color" content="#0B1220" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__brand">
+        <img class="topbar__logo" src="../docs/30_BRAND/logo/di-mark.svg" alt="DI" />
+        <div>
+          <div class="topbar__title">Drone Initiative</div>
+          <div class="topbar__subtitle" id="topSubtitle"></div>
+        </div>
+      </div>
+
+      <div class="topbar__actions">
+        <select class="roleSelect" id="roleSelect"></select>
+        <button class="btn btn--secondary" id="btnExport"></button>
+        <label class="btn btn--secondary" id="importLabel" for="importFile"></label>
+        <input id="importFile" type="file" accept="application/json" hidden />
+        <button class="btn btn--primary" id="btnLang">EN</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="hero">
+        <div class="hero__card">
+          <h1 class="hero__h1" id="heroTitle"></h1>
+          <p class="hero__p" id="heroDesc"></p>
+          <div class="hero__note" id="heroNote"></div>
+        </div>
+      </section>
+
+      <section class="grid" id="sectionsGrid"></section>
+    </main>
+
+    <div class="guide" id="guideRoot" aria-hidden="true">
+      <div class="guide__overlay" id="guideOverlay"></div>
+      <aside class="guide__panel" role="dialog" aria-modal="true" aria-labelledby="guideTitle">
+        <header class="guide__header">
+          <div>
+            <div class="guide__kicker" id="guideKicker"></div>
+            <h2 class="guide__title" id="guideTitle"></h2>
+          </div>
+          <div class="guide__meta">
+            <span class="pill" id="guideCode"></span>
+            <button class="btn btn--ghost btn--sm" id="guideCloseBtn">✕</button>
+          </div>
+        </header>
+        <div class="guide__body" id="guideContent"></div>
+      </aside>
+    </div>
+
+    <footer class="footer">
+      <div>Drone Initiative — DI</div>
+      <div class="footer__muted" id="footerMuted"></div>
+    </footer>
+
+    <template id="sectionCardTpl">
+      <article class="card">
+        <div class="card__head">
+          <div>
+            <div class="card__kicker" data-kicker></div>
+            <h2 class="card__title" data-title></h2>
+          </div>
+          <div class="card__headMeta">
+            <button class="btn btn--ghost btn--sm" data-guide></button>
+            <div class="pill" data-doccode></div>
+          </div>
+        </div>
+
+        <div class="card__body">
+          <div class="metaRow">
+            <span class="statusBadge" data-status></span>
+            <div class="metaRow__items">
+              <span data-owner></span>
+              <span data-approver></span>
+              <span data-version></span>
+            </div>
+            <button class="btn btn--ghost btn--sm" data-meta-edit></button>
+          </div>
+
+          <div class="kv">
+            <div class="kv__k" data-label-purpose></div>
+            <div class="kv__v" data-purpose></div>
+          </div>
+          <div class="kv">
+            <div class="kv__k" data-label-audience></div>
+            <div class="kv__v" data-audience></div>
+          </div>
+          <div class="kv">
+            <div class="kv__k" data-label-how></div>
+            <div class="kv__v" data-how></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="filebox">
+            <div class="filebox__meta" data-filemeta></div>
+            <div class="filebox__actions">
+              <label class="btn btn--secondary" data-upload-label>
+                <input type="file" hidden data-upload />
+                <span data-upload-text></span>
+              </label>
+              <button class="btn btn--primary" data-download></button>
+              <button class="btn btn--ghost" data-clear></button>
+            </div>
+          </div>
+
+          <div class="links">
+            <div class="links__header">
+              <span class="links__label" data-links-label></span>
+              <button class="btn btn--ghost btn--sm" data-link-add></button>
+            </div>
+            <div class="links__list" data-links-list></div>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
+
