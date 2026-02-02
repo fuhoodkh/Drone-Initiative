@@ -1,4 +1,12 @@
-import sqlite3 from 'sqlite3';
+// Conditional import for sqlite3 (may fail on Vercel due to native bindings)
+let sqlite3;
+try {
+  sqlite3 = (await import('sqlite3')).default;
+} catch (error) {
+  console.warn('SQLite3 not available (may not work on Vercel):', error.message);
+  sqlite3 = null;
+}
+
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
@@ -17,6 +25,13 @@ const DB_PATH = path.join(DB_DIR, 'platform.db');
 let db = null;
 
 export async function initDb() {
+  // Check if sqlite3 is available
+  if (!sqlite3) {
+    const error = new Error('SQLite3 is not available. This may be due to native bindings not being compatible with the serverless environment (e.g., Vercel). Consider using a cloud database like Vercel Postgres, MongoDB Atlas, or Supabase.');
+    console.error(error.message);
+    throw error;
+  }
+
   // Ensure data directory exists
   try {
     await fs.mkdir(DB_DIR, { recursive: true });

@@ -81,9 +81,14 @@ console.log('    ✓ POST /api/permissions/:sectionCode/share');
 console.log('    ✓ DELETE /api/permissions/:sectionCode/share/:userId');
 console.log('    ✓ GET /api/permissions/:sectionCode/access');
 
-// Health check
+// Health check (works without database)
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    database: dbInitialized ? 'initialized' : 'not initialized',
+    environment: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Serve platform index.html for root
@@ -128,10 +133,10 @@ if (process.env.VERCEL) {
         await initializeApp();
       } catch (error) {
         console.error('Initialization error:', error);
-        return res.status(500).json({ 
-          error: 'Database initialization failed', 
-          message: error.message 
-        });
+        console.error('Error stack:', error.stack);
+        // Don't block requests - allow app to work without DB for health checks
+        // Only fail on actual database-dependent routes
+        dbInitialized = false; // Allow retry on next request
       }
     }
     next();
