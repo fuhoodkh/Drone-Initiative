@@ -69,6 +69,18 @@ app.use('/api/sections', sectionsRouter);
 app.use('/api/files', filesRouter(upload));
 app.use('/api/permissions', permissionsRouter);
 
+// Debug: Log all registered routes
+console.log('📋 Registered routes:');
+console.log('  - /api/auth/*');
+console.log('  - /api/sections/*');
+console.log('  - /api/files/*');
+console.log('  - /api/permissions/*');
+console.log('    ✓ GET /api/permissions/users/list (FIRST - before parameterized routes)');
+console.log('    ✓ GET /api/permissions/my-sections');
+console.log('    ✓ POST /api/permissions/:sectionCode/share');
+console.log('    ✓ DELETE /api/permissions/:sectionCode/share/:userId');
+console.log('    ✓ GET /api/permissions/:sectionCode/access');
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -91,4 +103,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`✓ Server running on port ${PORT}`);
   console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`✓ Platform files: ${path.join(__dirname, '..', 'platform')}`);
+  console.log(`✓ API endpoints available at http://localhost:${PORT}/api`);
+  console.log(`✓ Test: http://localhost:${PORT}/api/health`);
 });

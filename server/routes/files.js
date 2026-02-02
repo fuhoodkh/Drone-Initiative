@@ -77,6 +77,25 @@ export function filesRouter(upload) {
   router.get('/:sectionCode', verifyToken, async (req, res) => {
     try {
       const { sectionCode } = req.params;
+      
+      // Check if user has access to this section
+      const userRecord = await dbGet('SELECT id, role FROM users WHERE username = ?', [req.user.username]);
+      if (!userRecord) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+      
+      // Admins and editors have access to all sections
+      if (userRecord.role !== 'admin' && userRecord.role !== 'editor') {
+        // Viewers need explicit permission
+        const hasAccess = await dbGet(
+          'SELECT id FROM section_permissions WHERE section_code = ? AND user_id = ?',
+          [sectionCode, userRecord.id]
+        );
+        if (!hasAccess) {
+          return res.status(403).json({ error: 'Access denied to this section' });
+        }
+      }
+      
       const meta = await dbGet('SELECT * FROM sections_meta WHERE section_code = ?', [sectionCode]);
       
       if (!meta || !meta.filename) {

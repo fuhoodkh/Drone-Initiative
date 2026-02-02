@@ -1236,6 +1236,12 @@ function setLang(lang) {
   if (logoutBtn) {
     logoutBtn.textContent = lang === 'ar' ? 'تسجيل الخروج' : 'Logout';
   }
+  
+  // Update create user button text
+  const createUserBtn = document.getElementById('btnCreateUser');
+  if (createUserBtn && createUserBtn.style.display !== 'none') {
+    createUserBtn.textContent = lang === 'ar' ? '+ مستخدم' : '+ User';
+  }
 
   // Role select labels
   const roleSelect = document.getElementById("roleSelect");
@@ -1370,11 +1376,23 @@ async function showShareModal(sectionCode) {
     let accessList = [];
     
     try {
+      console.log('📡 Calling API.getAllUsers()...');
       users = await API.getAllUsers();
       console.log('✅ Fetched users:', users);
+      
+      if (!users || !Array.isArray(users)) {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       console.error('❌ Error fetching users:', error);
-      alert(currentLang === 'ar' ? 'فشل تحميل قائمة المستخدمين' : 'Failed to load user list: ' + error.message);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
+      const errorMsg = error.message || 'Unknown error';
+      alert(currentLang === 'ar' 
+        ? `فشل تحميل قائمة المستخدمين: ${errorMsg}\n\nيرجى التحقق من:\n1. الخادم يعمل\n2. إعادة تشغيل الخادم إذا لزم الأمر` 
+        : `Failed to load user list: ${errorMsg}\n\nPlease check:\n1. Server is running\n2. Restart server if needed`);
       return;
     }
     
@@ -1589,6 +1607,210 @@ async function showMetaModal(sectionCode) {
   } catch (error) {
     console.error('Error showing metadata modal:', error);
     alert(error.message || 'Failed to load metadata');
+  }
+}
+
+// Add link modal
+function showAddLinkModal(sectionCode) {
+  try {
+    const L = i18n[currentLang].labels;
+    
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.className = 'metaModal'; // Reuse metaModal styles
+    modal.innerHTML = `
+      <div class="metaModal__overlay"></div>
+      <div class="metaModal__content">
+        <div class="metaModal__header">
+          <h3>${currentLang === 'ar' ? 'إضافة رابط مستند على الإنترنت' : 'Add Online Document Link'}</h3>
+          <button class="metaModal__close">✕</button>
+        </div>
+        <div class="metaModal__body">
+          <form class="metaModal__form" id="linkForm">
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.linkTitlePrompt}</label>
+              <input type="text" class="metaModal__input" id="linkTitle" placeholder="${L.linkTitlePrompt}" />
+              <div class="metaModal__help">${currentLang === 'ar' ? 'مثال: عرض رعاية، خطة إعلامية' : 'e.g., Sponsorship deck, Media plan'}</div>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${L.linkUrlPrompt}</label>
+              <input type="url" class="metaModal__input" id="linkUrl" placeholder="${L.linkUrlPrompt}" />
+              <div class="metaModal__help">${currentLang === 'ar' ? 'ألصق رابط Google Docs أو Drive الكامل' : 'Paste the full Google Docs or Drive URL'}</div>
+            </div>
+          </form>
+        </div>
+        <div class="metaModal__footer">
+          <button class="btn btn--secondary metaModal__cancel">${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          <button class="btn btn--primary metaModal__save">${currentLang === 'ar' ? 'إضافة' : 'Add'}</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Focus on title input
+    setTimeout(() => {
+      const titleInput = document.getElementById('linkTitle');
+      if (titleInput) titleInput.focus();
+    }, 100);
+    
+    // Close handlers
+    const close = () => {
+      modal.remove();
+    };
+    modal.querySelector('.metaModal__overlay').addEventListener('click', close);
+    modal.querySelector('.metaModal__close').addEventListener('click', close);
+    modal.querySelector('.metaModal__cancel').addEventListener('click', close);
+    
+    // Save handler
+    modal.querySelector('.metaModal__save').addEventListener('click', async () => {
+      const title = document.getElementById('linkTitle').value.trim();
+      const url = document.getElementById('linkUrl').value.trim();
+      
+      if (!title) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال عنوان المستند' : 'Please enter a document title');
+        return;
+      }
+      
+      if (!url) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال رابط المستند' : 'Please enter a document URL');
+        return;
+      }
+      
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch (e) {
+        alert(currentLang === 'ar' ? 'الرابط غير صحيح. يرجى إدخال رابط صحيح (يبدأ بـ http:// أو https://)' : 'Invalid URL. Please enter a valid URL (starting with http:// or https://)');
+        return;
+      }
+      
+      try {
+        await API.addSectionLink(sectionCode, title, url);
+        close();
+        await render();
+      } catch (error) {
+        console.error('Error adding link:', error);
+        alert(error.message || (currentLang === 'ar' ? 'فشل إضافة الرابط' : 'Failed to add link'));
+      }
+    });
+    
+    // Allow Enter key to submit
+    modal.querySelectorAll('.metaModal__input').forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          modal.querySelector('.metaModal__save').click();
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error showing add link modal:', error);
+    alert(error.message || 'Failed to show add link form');
+  }
+}
+
+// Create user modal (admin only)
+function showCreateUserModal() {
+  try {
+    const L = i18n[currentLang].labels;
+    
+    // Create modal HTML
+    const modal = document.createElement('div');
+    modal.className = 'metaModal'; // Reuse metaModal styles
+    modal.innerHTML = `
+      <div class="metaModal__overlay"></div>
+      <div class="metaModal__content">
+        <div class="metaModal__header">
+          <h3>${currentLang === 'ar' ? 'إنشاء مستخدم جديد' : 'Create New User'}</h3>
+          <button class="metaModal__close">✕</button>
+        </div>
+        <div class="metaModal__body">
+          <form class="metaModal__form" id="createUserForm">
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'اسم المستخدم' : 'Username'}</label>
+              <input type="text" class="metaModal__input" id="newUsername" placeholder="${currentLang === 'ar' ? 'اسم المستخدم' : 'Username'}" required />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'كلمة المرور' : 'Password'}</label>
+              <input type="password" class="metaModal__input" id="newPassword" placeholder="${currentLang === 'ar' ? 'كلمة المرور' : 'Password'}" required />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الدور' : 'Role'}</label>
+              <select class="metaModal__select" id="newRole">
+                <option value="viewer">${currentLang === 'ar' ? 'عارض' : 'Viewer'} - ${currentLang === 'ar' ? 'عرض فقط' : 'View only'}</option>
+                <option value="editor">${currentLang === 'ar' ? 'محرر' : 'Editor'} - ${currentLang === 'ar' ? 'تحرير ومشاركة' : 'Edit and share'}</option>
+                <option value="admin">${currentLang === 'ar' ? 'مدير' : 'Admin'} - ${currentLang === 'ar' ? 'صلاحيات كاملة' : 'Full access'}</option>
+              </select>
+              <div class="metaModal__help">${currentLang === 'ar' ? 'اختر دور المستخدم من القائمة' : 'Select user role from dropdown'}</div>
+            </div>
+          </form>
+        </div>
+        <div class="metaModal__footer">
+          <button class="btn btn--secondary metaModal__cancel">${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          <button class="btn btn--primary metaModal__save">${currentLang === 'ar' ? 'إنشاء' : 'Create'}</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Focus on username input
+    setTimeout(() => {
+      const usernameInput = document.getElementById('newUsername');
+      if (usernameInput) usernameInput.focus();
+    }, 100);
+    
+    // Close handlers
+    const close = () => {
+      modal.remove();
+    };
+    modal.querySelector('.metaModal__overlay').addEventListener('click', close);
+    modal.querySelector('.metaModal__close').addEventListener('click', close);
+    modal.querySelector('.metaModal__cancel').addEventListener('click', close);
+    
+    // Save handler
+    modal.querySelector('.metaModal__save').addEventListener('click', async () => {
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value;
+      const role = document.getElementById('newRole').value;
+      
+      if (!username) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال اسم المستخدم' : 'Please enter a username');
+        return;
+      }
+      
+      if (!password || password.length < 4) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال كلمة مرور (4 أحرف على الأقل)' : 'Please enter a password (at least 4 characters)');
+        return;
+      }
+      
+      try {
+        await API.createUser(username, password, role);
+        alert(currentLang === 'ar' ? `تم إنشاء المستخدم "${username}" بنجاح` : `User "${username}" created successfully`);
+        close();
+        // Refresh the page to show new user in share lists
+        location.reload();
+      } catch (error) {
+        console.error('Error creating user:', error);
+        alert(error.message || (currentLang === 'ar' ? 'فشل إنشاء المستخدم' : 'Failed to create user'));
+      }
+    });
+    
+    // Allow Enter key to submit
+    modal.querySelectorAll('.metaModal__input').forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          modal.querySelector('.metaModal__save').click();
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error showing create user modal:', error);
+    alert(error.message || 'Failed to show create user form');
   }
 }
 
@@ -1851,19 +2073,9 @@ async function render() {
 
     linkAddBtn.disabled = isViewer;
     if (isViewer) linkAddBtn.classList.add("hidden");
-    linkAddBtn.addEventListener("click", async () => {
+    linkAddBtn.addEventListener("click", () => {
       if (isViewer) return;
-      const title = prompt(L.linkTitlePrompt);
-      if (!title) return;
-      const url = prompt(L.linkUrlPrompt);
-      if (!url) return;
-      try {
-        await API.addSectionLink(s.code, title, url);
-        await render();
-      } catch (error) {
-        console.error('Error adding link:', error);
-        alert(error.message || 'Failed to add link');
-      }
+      showAddLinkModal(s.code);
     });
 
     grid.appendChild(node);
@@ -2048,6 +2260,18 @@ async function initApp() {
     const logoutBtn = document.getElementById('btnLogout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', logout);
+    }
+    
+    // Set up create user button (admin only)
+    const createUserBtn = document.getElementById('btnCreateUser');
+    if (createUserBtn) {
+      if (user.role === 'admin') {
+        createUserBtn.style.display = 'inline-block';
+        createUserBtn.textContent = currentLang === 'ar' ? '+ مستخدم' : '+ User';
+        createUserBtn.addEventListener('click', showCreateUserModal);
+      } else {
+        createUserBtn.style.display = 'none';
+      }
     }
     
     console.log('✅ App initialized successfully for user:', user.username, 'role:', currentRole);

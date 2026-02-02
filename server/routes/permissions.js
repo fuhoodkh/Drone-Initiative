@@ -4,6 +4,37 @@ import { verifyToken } from './auth.js';
 
 const router = express.Router();
 
+// Get all users (for sharing dropdown) - MUST be before parameterized routes
+// Using exact path match to avoid conflicts with :sectionCode routes
+router.get('/users/list', verifyToken, async (req, res) => {
+  try {
+    console.log('📋 GET /api/permissions/users/list - Request received');
+    
+    // Get current user from DB to check role
+    const currentUser = await dbGet('SELECT role FROM users WHERE username = ?', [req.user.username]);
+    if (!currentUser) {
+      console.error('❌ Current user not found in database');
+      return res.status(404).json({ error: 'Current user not found' });
+    }
+    
+    if (currentUser.role === 'viewer') {
+      console.log('❌ Viewer attempted to access user list');
+      return res.status(403).json({ error: 'Viewers cannot view user list' });
+    }
+    
+    console.log('✅ Fetching all users for:', req.user.username, 'role:', currentUser.role);
+    const users = await dbAll(
+      'SELECT id, username, role, created_at FROM users ORDER BY username'
+    );
+    
+    console.log(`✅ Returning ${users.length} users`);
+    res.json(users);
+  } catch (error) {
+    console.error('❌ Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users: ' + error.message });
+  }
+});
+
 // Get sections accessible to current user
 router.get('/my-sections', verifyToken, async (req, res) => {
   try {
@@ -137,26 +168,6 @@ router.get('/:sectionCode/access', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching access list:', error);
     res.status(500).json({ error: 'Failed to fetch access list' });
-  }
-});
-
-// Get all users (for sharing dropdown)
-router.get('/users/list', verifyToken, async (req, res) => {
-  try {
-    // Get current user from DB to check role
-    const currentUser = await dbGet('SELECT role FROM users WHERE username = ?', [req.user.username]);
-    if (!currentUser || currentUser.role === 'viewer') {
-      return res.status(403).json({ error: 'Viewers cannot view user list' });
-    }
-    
-    const users = await dbAll(
-      'SELECT id, username, role, created_at FROM users ORDER BY username'
-    );
-    
-    res.json(users);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 

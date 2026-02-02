@@ -44,9 +44,18 @@ function apiRequest(method, endpoint, body = null) {
   return fetch(url, options).then(async (res) => {
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(error.error || `HTTP ${res.status}`);
+      const errorMsg = error.error || `HTTP ${res.status}`;
+      console.error(`❌ API Error [${method} ${endpoint}]:`, res.status, errorMsg);
+      throw new Error(errorMsg);
     }
     return res.json();
+  }).catch(error => {
+    // Network errors or other fetch errors
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error('❌ Network error - server may be down:', error);
+      throw new Error('Cannot connect to server. Please check if server is running.');
+    }
+    throw error;
   });
 }
 
@@ -58,6 +67,10 @@ export async function login(username, password) {
 }
 
 export async function register(username, password, role = 'viewer') {
+  return apiRequest('POST', '/auth/register', { username, password, role });
+}
+
+export async function createUser(username, password, role = 'viewer') {
   return apiRequest('POST', '/auth/register', { username, password, role });
 }
 
@@ -176,5 +189,14 @@ export async function getSectionAccess(sectionCode) {
 }
 
 export async function getAllUsers() {
-  return apiRequest('GET', '/permissions/users/list');
+  try {
+    return await apiRequest('GET', '/permissions/users/list');
+  } catch (error) {
+    console.error('getAllUsers error:', error);
+    // If 404, the route might not be found - check if it's a route order issue
+    if (error.message.includes('404') || error.message.includes('Not Found')) {
+      throw new Error('User list endpoint not found. Please restart the server.');
+    }
+    throw error;
+  }
 }

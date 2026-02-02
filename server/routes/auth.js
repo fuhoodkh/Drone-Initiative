@@ -48,13 +48,24 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Register (admin only in production)
-router.post('/register', async (req, res) => {
+// Register/Create user (admin only)
+router.post('/register', verifyToken, async (req, res) => {
   try {
+    // Check if user is admin
+    const currentUser = await dbGet('SELECT role FROM users WHERE username = ?', [req.user.username]);
+    if (!currentUser || currentUser.role !== 'admin') {
+      return res.status(403).json({ error: 'Only admins can create users' });
+    }
+    
     const { username, password, role = 'viewer' } = req.body;
     
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password required' });
+    }
+    
+    // Validate role
+    if (!['admin', 'editor', 'viewer'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be admin, editor, or viewer' });
     }
     
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -62,6 +73,12 @@ router.post('/register', async (req, res) => {
     await dbRun(
       'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
       [username, hashedPassword, role]
+    );
+    
+    // Audit log
+    await dbRun(
+      'INSERT INTO audit_log (action, user, details) VALUES (?, ?, ?)',
+      ['user_created', req.user.username, JSON.stringify({ createdUser: username, role })]
     );
     
     res.json({ message: 'User created successfully' });

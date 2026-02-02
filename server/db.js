@@ -99,9 +99,18 @@ export async function initDb() {
         
         // Default admin user will be created by init-users.js script
         // This ensures proper bcrypt hashing
+        
+        // Wait for all table creation to complete
+        db.run('SELECT 1', (err) => {
+          if (err) {
+            console.error('Database initialization error:', err);
+            reject(err);
+          } else {
+            console.log('✓ Database tables initialized');
+            resolve();
+          }
+        });
       });
-      
-      resolve();
     });
   });
 }
