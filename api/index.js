@@ -5,6 +5,7 @@
 process.env.VERCEL = 'true';
 
 // Import and export the Express app
+// Note: Top-level await is supported in ES modules
 import app from '../server/server.js';
 
 export default app;

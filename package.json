@@ -1,0 +1,9 @@
+{
+  "name": "drone-initiative-platform",
+  "version": "1.0.0",
+  "description": "Drone Initiative document management platform",
+  "type": "module",
+  "engines": {
+    "node": ">=18.x"
+  }
+}

@@ -120,11 +120,19 @@ async function initializeApp() {
   }
 }
 
-// For Vercel/serverless: initialize on first request
+// For Vercel/serverless: initialize on first request with error handling
 if (process.env.VERCEL) {
   app.use(async (req, res, next) => {
     if (!dbInitialized) {
-      await initializeApp();
+      try {
+        await initializeApp();
+      } catch (error) {
+        console.error('Initialization error:', error);
+        return res.status(500).json({ 
+          error: 'Database initialization failed', 
+          message: error.message 
+        });
+      }
     }
     next();
   });

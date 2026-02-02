@@ -20,10 +20,15 @@ export async function initDb() {
   // Ensure data directory exists
   try {
     await fs.mkdir(DB_DIR, { recursive: true });
-    console.log('✓ Data directory ready');
+    console.log('✓ Data directory ready:', DB_DIR);
   } catch (err) {
     console.error('Error creating data directory:', err);
-    throw err;
+    // On Vercel, /tmp should always be writable, but log the error
+    if (process.env.VERCEL) {
+      console.warn('Warning: Could not create DB directory, continuing anyway');
+    } else {
+      throw err;
+    }
   }
   
   return new Promise((resolve, reject) => {
@@ -34,7 +39,7 @@ export async function initDb() {
         return;
       }
       db = dbInstance;
-      console.log('✓ Database connected');
+      console.log('✓ Database connected:', DB_PATH);
       
       // Create tables
       db.serialize(() => {
