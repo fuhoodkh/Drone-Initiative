@@ -1,7 +1,7 @@
 import sqlite3 from 'sqlite3';
 import { promisify } from 'util';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,14 +10,18 @@ const __dirname = path.dirname(__filename);
 const DB_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DB_DIR, 'platform.db');
 
-// Ensure data directory exists
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
-}
-
 let db = null;
 
 export async function initDb() {
+  // Ensure data directory exists
+  try {
+    await fs.mkdir(DB_DIR, { recursive: true });
+    console.log('✓ Data directory ready');
+  } catch (err) {
+    console.error('Error creating data directory:', err);
+    throw err;
+  }
+  
   return new Promise((resolve, reject) => {
     const dbInstance = new sqlite3.Database(DB_PATH, (err) => {
       if (err) {
@@ -26,7 +30,7 @@ export async function initDb() {
         return;
       }
       db = dbInstance;
-      console.log('Database connected');
+      console.log('✓ Database connected');
       
       // Create tables
       db.serialize(() => {

@@ -18,7 +18,6 @@ const PORT = process.env.PORT || 3000;
 
 // Ensure uploads directory exists
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-await fs.mkdir(UPLOADS_DIR, { recursive: true });
 
 // Middleware
 app.use(cors());
@@ -60,9 +59,6 @@ const upload = multer({
   }
 });
 
-// Initialize database
-await initDb();
-
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/sections', sectionsRouter);
@@ -99,10 +95,30 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✓ Server running on port ${PORT}`);
-  console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`✓ Platform files: ${path.join(__dirname, '..', 'platform')}`);
-  console.log(`✓ API endpoints available at http://localhost:${PORT}/api`);
-  console.log(`✓ Test: http://localhost:${PORT}/api/health`);
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Ensure uploads directory exists
+    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    console.log('✓ Uploads directory ready');
+    
+    // Initialize database
+    await initDb();
+    console.log('✓ Database initialized');
+
+    // Start server
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✓ Server running on port ${PORT}`);
+      console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`✓ Platform files: ${path.join(__dirname, '..', 'platform')}`);
+      console.log(`✓ API endpoints available at http://localhost:${PORT}/api`);
+      console.log(`✓ Test: http://localhost:${PORT}/api/health`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
