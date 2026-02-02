@@ -1,118 +1,6 @@
-// DI Platform (local-first): section guides + upload/download per section.
-// Storage: IndexedDB (files + metadata).
-
-const DB_NAME = "di-platform";
-const DB_VERSION = 1;
-const STORE_FILES = "files";
-const STORE_META = "meta";
-
-function openDb() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE_FILES)) db.createObjectStore(STORE_FILES);
-      if (!db.objectStoreNames.contains(STORE_META)) db.createObjectStore(STORE_META);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function idbSet(storeName, key, value) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction([storeName], "readwrite");
-    tx.objectStore(storeName).put(value, key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function idbGet(storeName, key) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction([storeName], "readonly");
-    const req = tx.objectStore(storeName).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function idbDel(storeName, key) {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction([storeName], "readwrite");
-    tx.objectStore(storeName).delete(key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function exportBackup() {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const out = { version: 1, exportedAt: new Date().toISOString(), meta: {}, files: {} };
-    const tx = db.transaction([STORE_META, STORE_FILES], "readonly");
-
-    const metaStore = tx.objectStore(STORE_META);
-    const filesStore = tx.objectStore(STORE_FILES);
-
-    metaStore.openCursor().onsuccess = async (e) => {
-      const cursor = e.target.result;
-      if (cursor) {
-        out.meta[cursor.key] = cursor.value;
-        cursor.continue();
-      }
-    };
-
-    filesStore.openCursor().onsuccess = async (e) => {
-      const cursor = e.target.result;
-      if (cursor) {
-        // File is stored as Blob; for backup we store as base64 string
-        const blob = cursor.value;
-        const b64 = await blobToBase64(blob);
-        out.files[cursor.key] = { mime: blob.type || "application/octet-stream", base64: b64 };
-        cursor.continue();
-      }
-    };
-
-    tx.oncomplete = () => resolve(out);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function importBackup(payload) {
-  if (!payload || payload.version !== 1) throw new Error("Unsupported backup format.");
-  const keys = Object.keys(payload.meta || {});
-  for (const k of keys) await idbSet(STORE_META, k, payload.meta[k]);
-  const fkeys = Object.keys(payload.files || {});
-  for (const k of fkeys) {
-    const f = payload.files[k];
-    const blob = base64ToBlob(f.base64, f.mime);
-    await idbSet(STORE_FILES, k, blob);
-  }
-}
-
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const s = String(r.result || "");
-      const idx = s.indexOf(",");
-      resolve(idx >= 0 ? s.slice(idx + 1) : s);
-    };
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-}
-
-function base64ToBlob(base64, mime) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mime || "application/octet-stream" });
-}
+// DI Platform (backend API): section guides + upload/download per section.
+// Storage: Backend API (files + metadata).
+import * as API from './api.js';
 
 function fmtBytes(n) {
   if (!Number.isFinite(n)) return "";
@@ -134,8 +22,116 @@ function downloadBlob(blob, filename) {
 }
 
 const SECTIONS = [
+  // Phase 01: Strategy & Approval
   {
-    code: "PROPOSAL",
+    code: "01-STR-PROGRAM_CHARTER",
+    phase: "01_STRATEGY",
+    kickerAr: "الحوكمة",
+    titleAr: "ميثاق البرنامج (Program Charter)",
+    purposeAr: "تحديد السلطة، النطاق، الأهداف، ومعايير النجاح. وثيقة السلطة الأساسية.",
+    audienceAr: "الراعي، اللجنة التوجيهية، إدارة المبادرة.",
+    howAr: "رؤية + معايير نجاح + سلطة القرار + مسار التصعيد + أصحاب المصلحة.",
+    kickerEn: "Governance",
+    titleEn: "Program Charter",
+    purposeEn: "Define authority, scope, objectives, and success criteria. The foundational authority document.",
+    audienceEn: "Sponsor, steering committee, initiative management.",
+    howEn: "Vision + success criteria + decision authority + escalation path + stakeholders.",
+    guideAr: `
+      <h3>جدول المحتويات</h3>
+      <ol>
+        <li>نظرة عامة على البرنامج</li>
+        <li>الأهداف ومعايير النجاح</li>
+        <li>تعريف النطاق (In/Out)</li>
+        <li>الحوكمة والسلطة</li>
+        <li>أصحاب المصلحة الرئيسيون</li>
+        <li>المخاطر والافتراضات</li>
+        <li>الموافقة</li>
+      </ol>
+      <h3>1. نظرة عامة على البرنامج</h3>
+      <ul>
+        <li>الاسم، الإصدار، الحالة، المالك، الراعي.</li>
+        <li>الغرض: تحديد السلطة والنطاق والأهداف.</li>
+        <li>المواءمة الاستراتيجية: المهارات الوطنية، بناء قدرات الشباب، الابتكار.</li>
+      </ul>
+      <h3>2. الأهداف ومعايير النجاح</h3>
+      <ul>
+        <li>أهداف البرنامج: تقديم تدريب آمن ومتوافق، بناء مهارات UAV، تفعيل الشركاء.</li>
+        <li>مؤشرات النجاح: نسبة إكمال المشاركين، صفر حوادث سلامة كبرى، تحقيق التزامات الرعاة.</li>
+      </ul>
+      <h3>3. تعريف النطاق</h3>
+      <ul>
+        <li>ضمن النطاق: تقديم التدريب، عمليات الدرون، إدارة السلامة، تنسيق الشركاء.</li>
+        <li>خارج النطاق: خدمات درون تجارية، عمليات BVLOS متقدمة.</li>
+      </ul>
+      <h3>4. الحوكمة والسلطة</h3>
+      <ul>
+        <li>جدول السلطة: الاستراتيجية → الراعي، الميزانية → المالية + الراعي، السلامة → سلطة الطيران، التشغيل → مدير المبادرة.</li>
+        <li>مسار التصعيد: المدرب → قائد التشغيل → مدير المبادرة → الراعي.</li>
+      </ul>
+      <h3>5. أصحاب المصلحة</h3>
+      <ul>
+        <li>راعي البرنامج، مدير المبادرة، قائد التشغيل، مسؤول السلامة، الشركاء.</li>
+      </ul>
+      <h3>6. المخاطر والافتراضات</h3>
+      <ul>
+        <li>مخاطر رئيسية: تعطيل الطقس، فشل المعدات، إصابة المشارك.</li>
+        <li>افتراضات: الموافقات التنظيمية ممنوحة، المدربون المؤهلون متاحون.</li>
+      </ul>
+      <h3>7. الموافقة</h3>
+      <ul>
+        <li>أعدها: (الاسم)، راجعها: (الاسم)، وافق عليها: (الاسم).</li>
+      </ul>
+    `,
+    guideEn: `
+      <h3>Table of contents</h3>
+      <ol>
+        <li>Program overview</li>
+        <li>Objectives & success criteria</li>
+        <li>Scope definition</li>
+        <li>Governance & authority</li>
+        <li>Key stakeholders</li>
+        <li>Risks & assumptions</li>
+        <li>Approval</li>
+      </ol>
+      <h3>1. Program overview</h3>
+      <ul>
+        <li>Name, version, status, owner, sponsor.</li>
+        <li>Purpose: Define authority, scope, objectives.</li>
+        <li>Strategic alignment: National skills, youth capacity, innovation.</li>
+      </ul>
+      <h3>2. Objectives & success criteria</h3>
+      <ul>
+        <li>Program objectives: Deliver safe, compliant training; build UAV skills; engage partners.</li>
+        <li>Success metrics: % completion, zero major safety incidents, sponsor deliverables achieved.</li>
+      </ul>
+      <h3>3. Scope definition</h3>
+      <ul>
+        <li>In scope: Training delivery, drone operations, safety management, partner coordination.</li>
+        <li>Out of scope: Commercial drone services, advanced BVLOS operations.</li>
+      </ul>
+      <h3>4. Governance & authority</h3>
+      <ul>
+        <li>Decision authority table: Strategy → Sponsor, Budget → Finance + Sponsor, Safety → Aviation Authority, Operations → Initiative Manager.</li>
+        <li>Escalation path: Trainer → Ops Lead → Initiative Manager → Sponsor.</li>
+      </ul>
+      <h3>5. Key stakeholders</h3>
+      <ul>
+        <li>Program Sponsor, Initiative Manager, Operations Lead, Safety Officer, Partners.</li>
+      </ul>
+      <h3>6. Risks & assumptions</h3>
+      <ul>
+        <li>Key risks: Weather disruption, equipment failure, participant injury.</li>
+        <li>Assumptions: Regulatory approvals granted, qualified trainers available.</li>
+      </ul>
+      <h3>7. Approval</h3>
+      <ul>
+        <li>Prepared by: (Name), Reviewed by: (Name), Approved by: (Name).</li>
+      </ul>
+    `,
+  },
+  {
+    code: "01-STR-PROPOSAL",
+    phase: "01_STRATEGY",
     kickerAr: "مقترح المبادرة",
     titleAr: "مقترح البرنامج (AR)",
     purposeAr: "الحصول على اعتماد الجهات والشركاء وتوحيد الرؤية والخطة.",
@@ -241,8 +237,10 @@ const SECTIONS = [
       </ul>
     `,
   },
+  // Phase 02: Funding & Partnerships
   {
-    code: "SPONSORSHIP",
+    code: "02-FUND-SPONSORSHIP",
+    phase: "02_FUNDING",
     kickerAr: "ملف الرعاية",
     titleAr: "حزمة الرعاية (AR)",
     purposeAr: "تحويل الرعاة عبر عرض قيمة واضح: أثر + ظهور + تفعيل + مؤشرات.",
@@ -340,9 +338,95 @@ const SECTIONS = [
       </ul>
     `,
   },
+  // Phase 03: Compliance & Safety
   {
-    code: "REGISTRATION",
-    kickerAr: "التسجيل",
+    code: "03-COMP-REGULATORY",
+    phase: "03_COMPLIANCE",
+    kickerAr: "الامتثال",
+    titleAr: "الملف التنظيمي والامتثال",
+    purposeAr: "الموافقات، المواصفات، الشهادات، الحماية القانونية.",
+    audienceAr: "الطيران المدني، الجهات التنظيمية، القانونية.",
+    howAr: "موافقات الطيران + مواصفات الدرون + أرقام تسلسلية + شهادات طيارين + شهادات تأمين.",
+    kickerEn: "Compliance",
+    titleEn: "Regulatory & Compliance File",
+    purposeEn: "Aviation approvals, drone specs, pilot credentials, insurance certificates. Legal protection.",
+    audienceEn: "Civil aviation, regulatory bodies, legal.",
+    howEn: "Aviation approvals + drone specs & serials + pilot credentials + insurance certificates.",
+    guideAr: `
+      <h3>جدول المحتويات</h3>
+      <ol>
+        <li>موافقات الطيران المدني</li>
+        <li>مواصفات الدرون والأرقام التسلسلية</li>
+        <li>شهادات الطيارين/المدربين</li>
+        <li>شهادات التأمين</li>
+        <li>متطلبات الموقع</li>
+        <li>التحديثات والمراجعات</li>
+      </ol>
+      <h3>1. موافقات الطيران المدني</h3>
+      <ul>
+        <li>رقم الموافقة، تاريخ الإصدار، تاريخ الانتهاء، الشروط.</li>
+      </ul>
+      <h3>2. مواصفات الدرون والأرقام التسلسلية</h3>
+      <ul>
+        <li>جدول: نوع الدرون / الرقم التسلسلي / الحالة / تاريخ الصيانة.</li>
+      </ul>
+      <h3>3. شهادات الطيارين/المدربين</h3>
+      <ul>
+        <li>أسماء، أرقام الشهادات، تواريخ الإصدار، صلاحية.</li>
+      </ul>
+      <h3>4. شهادات التأمين</h3>
+      <ul>
+        <li>نوع التغطية، المبلغ، تاريخ البدء/الانتهاء، رقم البوليصة.</li>
+      </ul>
+      <h3>5. متطلبات الموقع</h3>
+      <ul>
+        <li>موافقات الموقع، قيود الاستخدام، متطلبات السلامة.</li>
+      </ul>
+      <h3>6. التحديثات والمراجعات</h3>
+      <ul>
+        <li>جدول زمني للمراجعات الدورية.</li>
+      </ul>
+    `,
+    guideEn: `
+      <h3>Table of contents</h3>
+      <ol>
+        <li>Civil aviation approvals</li>
+        <li>Drone specs & serial numbers</li>
+        <li>Pilot/trainer credentials</li>
+        <li>Insurance certificates</li>
+        <li>Venue requirements</li>
+        <li>Updates & reviews</li>
+      </ol>
+      <h3>1. Civil aviation approvals</h3>
+      <ul>
+        <li>Approval number, issue date, expiry date, conditions.</li>
+      </ul>
+      <h3>2. Drone specs & serial numbers</h3>
+      <ul>
+        <li>Table: Drone type / Serial number / Status / Last maintenance.</li>
+      </ul>
+      <h3>3. Pilot/trainer credentials</h3>
+      <ul>
+        <li>Names, certificate numbers, issue dates, validity.</li>
+      </ul>
+      <h3>4. Insurance certificates</h3>
+      <ul>
+        <li>Coverage type, amount, start/end dates, policy number.</li>
+      </ul>
+      <h3>5. Venue requirements</h3>
+      <ul>
+        <li>Venue approvals, usage restrictions, safety requirements.</li>
+      </ul>
+      <h3>6. Updates & reviews</h3>
+      <ul>
+        <li>Schedule for periodic reviews.</li>
+      </ul>
+    `,
+  },
+  {
+    code: "03-COMP-SAFETY",
+    phase: "03_COMPLIANCE",
+    kickerAr: "السلامة",
     titleAr: "حزمة التسجيل (AR)",
     purposeAr: "توحيد تجربة التقديم والقبول والموافقات وضمان السلامة.",
     audienceAr: "طلبة، أولياء الأمور، المدارس، فريق الإدارة.",
@@ -424,7 +508,8 @@ const SECTIONS = [
     `,
   },
   {
-    code: "INVEST_DECK",
+    code: "02-FUND-INVEST_DECK",
+    phase: "02_FUNDING",
     kickerAr: "عرض استثماري",
     titleAr: "عرض الاستثمار (Deck)",
     purposeAr: "جذب تمويل/شراكات استراتيجية عبر قصة + نموذج + توسع.",
@@ -462,8 +547,100 @@ const SECTIONS = [
       </ol>
     `,
   },
+  // Phase 04: Operations & Delivery
   {
-    code: "CURRICULUM",
+    code: "04-OPS-OPERATIONS",
+    phase: "04_OPERATIONS",
+    kickerAr: "التشغيل",
+    titleAr: "دليل التشغيل (Operations Runbook)",
+    purposeAr: "توفير إرشادات تشغيلية خطوة بخطوة للتسليم الآمن والموثوق.",
+    audienceAr: "إدارة البرنامج، قائد التشغيل، المدربون.",
+    howAr: "Runbook: فتح/إغلاق يومي + قوائم تحقق + RACI + مسارات تصعيد.",
+    kickerEn: "Operations",
+    titleEn: "Operations Runbook",
+    purposeEn: "Provide step-by-step operational guidance for safe and consistent delivery.",
+    audienceEn: "Program management, operations lead, trainers.",
+    howEn: "Runbook-style with RACI, checklists, incident handling.",
+    guideAr: `
+      <h3>جدول المحتويات</h3>
+      <ol>
+        <li>الغرض</li>
+        <li>الأدوار والمسؤوليات (RACI)</li>
+        <li>تدفق العمليات اليومية</li>
+        <li>إدارة المعدات</li>
+        <li>السلامة وإدارة الحوادث</li>
+        <li>بروتوكولات No-Fly والطوارئ</li>
+      </ol>
+      <h3>1. الغرض</h3>
+      <ul>
+        <li>توفير إرشادات تشغيلية خطوة بخطوة للتسليم الآمن والموثوق.</li>
+      </ul>
+      <h3>2. الأدوار والمسؤوليات (RACI)</h3>
+      <ul>
+        <li>جدول: الدور / المسؤولية (مدير المبادرة = المساءلة الكاملة، قائد التشغيل = التنفيذ اليومي، المدرب = التعليم والإشراف، مسؤول السلامة = مراقبة المخاطر).</li>
+      </ul>
+      <h3>3. تدفق العمليات اليومية</h3>
+      <ul>
+        <li>قائمة ما قبل اليوم: فحص الطقس، فحص المعدات، تأكيد المجال الجوي، سجل الحضور.</li>
+        <li>هيكل يوم التدريب: إحاطة السلامة، جلسة نظرية، جلسة طيران عملية، إحاطة نهائية.</li>
+        <li>مهام ما بعد اليوم: سجل الحوادث، تخزين المعدات، التقرير اليومي.</li>
+      </ul>
+      <h3>4. إدارة المعدات</h3>
+      <ul>
+        <li>سجل المخزون، بروتوكول شحن البطارية، تقرير الأضرار.</li>
+      </ul>
+      <h3>5. السلامة وإدارة الحوادث</h3>
+      <ul>
+        <li>مستويات الحوادث: طفيف، متوسط، حرج.</li>
+        <li>إجراء الاستجابة: إيقاف العمليات → تأمين المنطقة → الإبلاغ → التصعيد.</li>
+      </ul>
+      <h3>6. بروتوكولات No-Fly والطوارئ</h3>
+      <ul>
+        <li>حدود الطقس، عتبات الحشود، جهات الاتصال في حالات الطوارئ.</li>
+      </ul>
+    `,
+    guideEn: `
+      <h3>Table of contents</h3>
+      <ol>
+        <li>Purpose</li>
+        <li>Roles & responsibilities (RACI)</li>
+        <li>Daily operations flow</li>
+        <li>Equipment management</li>
+        <li>Safety & incident handling</li>
+        <li>No-fly & emergency protocols</li>
+      </ol>
+      <h3>1. Purpose</h3>
+      <ul>
+        <li>Provide step-by-step operational guidance for safe and consistent delivery.</li>
+      </ul>
+      <h3>2. Roles & responsibilities (RACI)</h3>
+      <ul>
+        <li>Table: Role / Responsibility (Initiative Manager = Overall accountability, Operations Lead = Daily execution, Trainer = Instruction & flight supervision, Safety Officer = Risk monitoring).</li>
+      </ul>
+      <h3>3. Daily operations flow</h3>
+      <ul>
+        <li>Pre-day checklist: Weather check, equipment inspection, airspace confirmation, attendance log.</li>
+        <li>Training day structure: Safety briefing, theory session, practical flight session, debrief.</li>
+        <li>Post-day tasks: Incident log, equipment storage, daily report.</li>
+      </ul>
+      <h3>4. Equipment management</h3>
+      <ul>
+        <li>Inventory register, battery charging protocol, damage reporting.</li>
+      </ul>
+      <h3>5. Safety & incident handling</h3>
+      <ul>
+        <li>Incident levels: Minor, Moderate, Critical.</li>
+        <li>Response procedure: Stop operations → Secure area → Report → Escalate.</li>
+      </ul>
+      <h3>6. No-fly & emergency protocols</h3>
+      <ul>
+        <li>Weather limits, crowd thresholds, emergency contacts.</li>
+      </ul>
+    `,
+  },
+  {
+    code: "04-OPS-CURRICULUM",
+    phase: "04_OPERATIONS",
     kickerAr: "المنهج",
     titleAr: "المنهج والجدول (AR)",
     purposeAr: "تحويل الأهداف إلى خطة تعليمية قابلة للتنفيذ والتقييم.",
@@ -498,42 +675,8 @@ const SECTIONS = [
     `,
   },
   {
-    code: "OPS",
-    kickerAr: "التشغيل",
-    titleAr: "خطة التشغيل (OPS)",
-    purposeAr: "تنفيذ موثوق: أدوار، لوجستيات، مشتريات، تقارير، تصعيد.",
-    audienceAr: "إدارة البرنامج، اللوجستيات، الموردون.",
-    howAr: "Runbook: فتح/إغلاق يومي + قوائم تحقق + RACI + مسارات تصعيد.",
-    kickerEn: "Operations",
-    titleEn: "Operations Plan",
-    purposeEn: "Run reliably with clear roles, checklists, escalation.",
-    audienceEn: "Program mgmt, logistics, vendors.",
-    howEn: "Runbook-style with RACI, checklists, incident handling.",
-    guideAr: `
-      <h3>عناوين رئيسية مقترحة</h3>
-      <ol>
-        <li>نموذج التشغيل اليومي</li>
-        <li>الأدوار و RACI</li>
-        <li>المشتريات والمخزون</li>
-        <li>إدارة الموردين</li>
-        <li>التواصل والتقارير</li>
-        <li>إدارة الحوادث والتصعيد</li>
-      </ol>
-    `,
-    guideEn: `
-      <h3>Suggested sections</h3>
-      <ol>
-        <li>Daily runbook</li>
-        <li>Roles & RACI</li>
-        <li>Procurement & inventory</li>
-        <li>Vendor management</li>
-        <li>Communications & reporting</li>
-        <li>Incident & escalation flows</li>
-      </ol>
-    `,
-  },
-  {
-    code: "SAFETY",
+    code: "03-COMP-SAFETY",
+    phase: "03_COMPLIANCE",
     kickerAr: "السلامة",
     titleAr: "خطة السلامة (AR)",
     purposeAr: "حماية الطلبة والطاقم والالتزام بمتطلبات الجهات.",
@@ -570,7 +713,8 @@ const SECTIONS = [
     `,
   },
   {
-    code: "BUDGET",
+    code: "02-FUND-BUDGET",
+    phase: "02_FUNDING",
     kickerAr: "الميزانية",
     titleAr: "نموذج الميزانية",
     purposeAr: "التحكم المالي واتخاذ قرار التمويل.",
@@ -601,7 +745,8 @@ const SECTIONS = [
     `,
   },
   {
-    code: "MOU",
+    code: "02-FUND-MOU",
+    phase: "02_FUNDING",
     kickerAr: "مذكرات تفاهم",
     titleAr: "MoU / Letters",
     purposeAr: "تثبيت الالتزامات والمسؤوليات مع الشركاء.",
@@ -635,8 +780,10 @@ const SECTIONS = [
       </ol>
     `,
   },
+  // Phase 05: Communications
   {
-    code: "MEDIAKIT",
+    code: "05-COMM-MEDIAKIT",
+    phase: "05_COMMUNICATIONS",
     kickerAr: "إعلام",
     titleAr: "الحقيبة الإعلامية (AR)",
     purposeAr: "توحيد الرسائل والمواد البصرية للبرنامج والشركاء.",
@@ -668,6 +815,259 @@ const SECTIONS = [
         <li>Logo usage</li>
         <li>Sample posts</li>
       </ol>
+    `,
+  },
+  // Phase 06: Data & Privacy
+  {
+    code: "06-DATA-PRIVACY",
+    phase: "06_DATA",
+    kickerAr: "البيانات والخصوصية",
+    titleAr: "حماية البيانات والموافقات",
+    purposeAr: "إدارة بيانات الطلبة، موافقات التصوير، استخدام صور الدرون، فترة الاحتفاظ.",
+    audienceAr: "القانونية، إدارة البرنامج، أولياء الأمور.",
+    howAr: "معالجة بيانات الطلبة + موافقات التصوير + استخدام صور الدرون + فترة الاحتفاظ + الامتثال.",
+    kickerEn: "Data & Privacy",
+    titleEn: "Data Protection & Consent",
+    purposeEn: "Student data handling, media consent, drone imagery usage, retention period. Especially important with minors.",
+    audienceEn: "Legal, program management, guardians.",
+    howEn: "Student data handling + media consent + drone imagery usage + retention period + compliance.",
+    guideAr: `
+      <h3>جدول المحتويات</h3>
+      <ol>
+        <li>الغرض والنطاق</li>
+        <li>معالجة بيانات الطلبة</li>
+        <li>موافقات التصوير والإعلام</li>
+        <li>استخدام صور الدرون</li>
+        <li>فترة الاحتفاظ</li>
+        <li>الامتثال والخصوصية</li>
+      </ol>
+      <h3>1. الغرض والنطاق</h3>
+      <ul>
+        <li>ضمان الامتثال لقوانين حماية البيانات، خاصة مع القاصرين.</li>
+      </ul>
+      <h3>2. معالجة بيانات الطلبة</h3>
+      <ul>
+        <li>ما البيانات التي نجمعها (الاسم، العمر، المدرسة، معلومات طبية أساسية).</li>
+        <li>كيف نخزنها (مشفرة، وصول محدود).</li>
+        <li>من يصل إليها (فريق البرنامج فقط، لا مشاركة مع أطراف ثالثة دون موافقة).</li>
+      </ul>
+      <h3>3. موافقات التصوير والإعلام</h3>
+      <ul>
+        <li>نموذج موافقة ولي الأمر للتصوير والنشر.</li>
+        <li>خيارات: موافقة كاملة / موافقة محدودة / رفض.</li>
+      </ul>
+      <h3>4. استخدام صور الدرون</h3>
+      <ul>
+        <li>سياسة استخدام الصور/الفيديو من الدرون (تدريبية فقط، لا نشر تجاري).</li>
+      </ul>
+      <h3>5. فترة الاحتفاظ</h3>
+      <ul>
+        <li>كم من الوقت نحتفظ بالبيانات (مثال: 2 سنة بعد انتهاء البرنامج).</li>
+        <li>إجراءات الحذف الآمن.</li>
+      </ul>
+      <h3>6. الامتثال والخصوصية</h3>
+      <ul>
+        <li>الامتثال للقوانين المحلية، حق الوصول، حق الحذف.</li>
+      </ul>
+    `,
+    guideEn: `
+      <h3>Table of contents</h3>
+      <ol>
+        <li>Purpose & scope</li>
+        <li>Student data handling</li>
+        <li>Media consent</li>
+        <li>Drone imagery usage</li>
+        <li>Retention period</li>
+        <li>Compliance & privacy</li>
+      </ol>
+      <h3>1. Purpose & scope</h3>
+      <ul>
+        <li>Ensure compliance with data protection laws, especially with minors.</li>
+      </ul>
+      <h3>2. Student data handling</h3>
+      <ul>
+        <li>What data we collect (name, age, school, basic medical info).</li>
+        <li>How we store it (encrypted, limited access).</li>
+        <li>Who accesses it (program team only, no sharing with third parties without consent).</li>
+      </ul>
+      <h3>3. Media consent</h3>
+      <ul>
+        <li>Guardian consent form for photography and publication.</li>
+        <li>Options: Full consent / Limited consent / Decline.</li>
+      </ul>
+      <h3>4. Drone imagery usage</h3>
+      <ul>
+        <li>Policy on using drone photos/videos (training only, no commercial publication).</li>
+      </ul>
+      <h3>5. Retention period</h3>
+      <ul>
+        <li>How long we retain data (e.g., 2 years after program end).</li>
+        <li>Secure deletion procedures.</li>
+      </ul>
+      <h3>6. Compliance & privacy</h3>
+      <ul>
+        <li>Compliance with local laws, right to access, right to deletion.</li>
+      </ul>
+    `,
+  },
+  // Phase 07: Monitoring & Reporting
+  {
+    code: "07-MON-IMPACT",
+    phase: "07_MONITORING",
+    kickerAr: "المراقبة والتقارير",
+    titleAr: "تقرير المراقبة والأثر",
+    purposeAr: "KPIs، الحضور، حوادث السلامة، مقاييس ظهور الرعاة، الدروس المستفادة.",
+    audienceAr: "الرعاة، الراعي، إدارة المبادرة، الشركاء.",
+    howAr: "لوحة KPIs + تقارير أسبوعية + سجل حوادث + مقاييس الرعاة + تحليل الدروس المستفادة.",
+    kickerEn: "Monitoring",
+    titleEn: "Monitoring & Impact Report",
+    purposeEn: "KPIs, attendance, safety incidents, sponsor exposure metrics, lessons learned. Feeds back into sponsors and future funding.",
+    audienceEn: "Sponsors, sponsor, initiative management, partners.",
+    howEn: "KPI dashboard + weekly reports + incident log + sponsor metrics + lessons learned analysis.",
+    guideAr: `
+      <h3>جدول المحتويات</h3>
+      <ol>
+        <li>لوحة KPIs</li>
+        <li>التقارير الأسبوعية</li>
+        <li>سجل حوادث السلامة</li>
+        <li>مقاييس ظهور الرعاة</li>
+        <li>الدروس المستفادة</li>
+        <li>التوصيات</li>
+      </ol>
+      <h3>1. لوحة KPIs</h3>
+      <ul>
+        <li>عدد الطلبة المقبولين والمتخرجين، ساعات التدريب، نسبة الإكمال، عدد طائرات FPV المجمعة.</li>
+      </ul>
+      <h3>2. التقارير الأسبوعية</h3>
+      <ul>
+        <li>ملخص أسبوعي: الحضور، الأنشطة، التحديات، الإنجازات.</li>
+      </ul>
+      <h3>3. سجل حوادث السلامة</h3>
+      <ul>
+        <li>جدول: التاريخ / النوع / المستوى / الإجراء المتخذ / الحالة.</li>
+      </ul>
+      <h3>4. مقاييس ظهور الرعاة</h3>
+      <ul>
+        <li>التغطية الإعلامية (عدد الأخبار/المنشورات/الوصول)، ظهور في الموقع، ظهور في Demo Day.</li>
+      </ul>
+      <h3>5. الدروس المستفادة</h3>
+      <ul>
+        <li>ما الذي عمل بشكل جيد، ما الذي يحتاج تحسين، التحديات الرئيسية.</li>
+      </ul>
+      <h3>6. التوصيات</h3>
+      <ul>
+        <li>توصيات للدفعة التالية، تحسينات عملية، تغييرات في المنهج.</li>
+      </ul>
+    `,
+    guideEn: `
+      <h3>Table of contents</h3>
+      <ol>
+        <li>KPI dashboard</li>
+        <li>Weekly reports</li>
+        <li>Safety incident log</li>
+        <li>Sponsor exposure metrics</li>
+        <li>Lessons learned</li>
+        <li>Recommendations</li>
+      </ol>
+      <h3>1. KPI dashboard</h3>
+      <ul>
+        <li>Number of students accepted and graduated, training hours, completion rate, number of FPV builds.</li>
+      </ul>
+      <h3>2. Weekly reports</h3>
+      <ul>
+        <li>Weekly summary: Attendance, activities, challenges, achievements.</li>
+      </ul>
+      <h3>3. Safety incident log</h3>
+      <ul>
+        <li>Table: Date / Type / Level / Action taken / Status.</li>
+      </ul>
+      <h3>4. Sponsor exposure metrics</h3>
+      <ul>
+        <li>Media coverage (number of news/posts/reach), on-site visibility, Demo Day visibility.</li>
+      </ul>
+      <h3>5. Lessons learned</h3>
+      <ul>
+        <li>What worked well, what needs improvement, key challenges.</li>
+      </ul>
+      <h3>6. Recommendations</h3>
+      <ul>
+        <li>Recommendations for next cohort, operational improvements, curriculum changes.</li>
+      </ul>
+    `,
+  },
+  // Phase 08: Closure
+  {
+    code: "08-CLOSE-CLOSURE",
+    phase: "08_CLOSURE",
+    kickerAr: "الإغلاق",
+    titleAr: "حزمة إغلاق البرنامج",
+    purposeAr: "التقرير النهائي، التسوية المالية، جرد الأصول، التوصيات للدفعة التالية.",
+    audienceAr: "الراعي، إدارة المبادرة، الرعاة، الشركاء.",
+    howAr: "تقرير نهائي شامل + تسوية مالية + جرد المعدات/الأصول + توصيات + خطة للدفعة التالية.",
+    kickerEn: "Closure",
+    titleEn: "Program Closure Pack",
+    purposeEn: "Final report, financial reconciliation, asset inventory, recommendations for next cohort. Turns v1 into v2.",
+    audienceEn: "Sponsor, initiative management, sponsors, partners.",
+    howEn: "Comprehensive final report + financial reconciliation + equipment/asset inventory + recommendations + plan for next cohort.",
+    guideAr: `
+      <h3>جدول المحتويات</h3>
+      <ol>
+        <li>التقرير النهائي</li>
+        <li>التسوية المالية</li>
+        <li>جرد الأصول والمعدات</li>
+        <li>التوصيات للدفعة التالية</li>
+        <li>خطة التحسين</li>
+      </ol>
+      <h3>1. التقرير النهائي</h3>
+      <ul>
+        <li>ملخص تنفيذي، الأهداف المحققة، KPIs النهائية، قصص نجاح، التحديات.</li>
+      </ul>
+      <h3>2. التسوية المالية</h3>
+      <ul>
+        <li>الميزانية المخططة مقابل الفعلية، التحليل، التفسيرات للانحرافات.</li>
+      </ul>
+      <h3>3. جرد الأصول والمعدات</h3>
+      <ul>
+        <li>جدول: المعدة / الحالة / الموقع / التوصية (إعادة استخدام / صيانة / استبدال).</li>
+      </ul>
+      <h3>4. التوصيات للدفعة التالية</h3>
+      <ul>
+        <li>تحسينات في المنهج، تحسينات عملية، تغييرات في الهيكل، شراكات جديدة.</li>
+      </ul>
+      <h3>5. خطة التحسين</h3>
+      <ul>
+        <li>خطة عمل محددة للتنفيذ في الدفعة التالية.</li>
+      </ul>
+    `,
+    guideEn: `
+      <h3>Table of contents</h3>
+      <ol>
+        <li>Final report</li>
+        <li>Financial reconciliation</li>
+        <li>Asset & equipment inventory</li>
+        <li>Recommendations for next cohort</li>
+        <li>Improvement plan</li>
+      </ol>
+      <h3>1. Final report</h3>
+      <ul>
+        <li>Executive summary, objectives achieved, final KPIs, success stories, challenges.</li>
+      </ul>
+      <h3>2. Financial reconciliation</h3>
+      <ul>
+        <li>Planned vs actual budget, analysis, explanations for variances.</li>
+      </ul>
+      <h3>3. Asset & equipment inventory</h3>
+      <ul>
+        <li>Table: Asset / Condition / Location / Recommendation (reuse / maintenance / replace).</li>
+      </ul>
+      <h3>4. Recommendations for next cohort</h3>
+      <ul>
+        <li>Curriculum improvements, operational improvements, structural changes, new partnerships.</li>
+      </ul>
+      <h3>5. Improvement plan</h3>
+      <ul>
+        <li>Specific action plan for implementation in next cohort.</li>
+      </ul>
     `,
   },
 ];
@@ -860,33 +1260,49 @@ function setLang(lang) {
 }
 
 async function getSectionMeta(code) {
-  return (await idbGet(STORE_META, code)) || null;
+  try {
+    return await API.getSectionMeta(code);
+  } catch (error) {
+    console.error('Error fetching section meta:', error);
+    return null;
+  }
 }
 
 async function setSectionFile(code, file) {
-  const existing = (await getSectionMeta(code)) || {};
-  const meta = {
-    ...existing,
-    filename: file.name,
-    mime: file.type || "application/octet-stream",
-    size: file.size,
-    updatedAt: new Date().toISOString(),
-  };
-  await idbSet(STORE_FILES, code, file);
-  await idbSet(STORE_META, code, meta);
+  try {
+    await API.uploadSectionFile(code, file);
+    // Metadata is updated by backend
+    return true;
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    alert(error.message || 'Failed to upload file');
+    throw error;
+  }
 }
 
 async function clearSection(code) {
-  await idbDel(STORE_FILES, code);
-  await idbDel(STORE_META, code);
+  try {
+    await API.deleteSectionFile(code);
+    return true;
+  } catch (error) {
+    console.error('Error clearing section:', error);
+    alert(error.message || 'Failed to delete file');
+    throw error;
+  }
 }
 
 async function downloadSection(code) {
-  const blob = await idbGet(STORE_FILES, code);
-  const meta = await getSectionMeta(code);
-  if (!blob || !meta) return false;
-  downloadBlob(blob, meta.filename || `${code}.bin`);
-  return true;
+  try {
+    await API.downloadSectionFile(code);
+    return true;
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    if (error.message.includes('404') || error.message.includes('not found')) {
+      return false;
+    }
+    alert(error.message || 'Failed to download file');
+    return false;
+  }
 }
 
 function sectionText(s) {
@@ -915,12 +1331,27 @@ function closeGuide() {
 }
 
 async function render() {
-  const grid = document.getElementById("sectionsGrid");
-  grid.innerHTML = "";
-  const tpl = document.getElementById("sectionCardTpl");
-  const L = i18n[currentLang].labels;
+  try {
+    const grid = document.getElementById("sectionsGrid");
+    if (!grid) {
+      console.warn('Sections grid not found, retrying...');
+      setTimeout(render, 100);
+      return;
+    }
+    
+    grid.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;">Loading sections...</div>';
+    
+    const tpl = document.getElementById("sectionCardTpl");
+    if (!tpl) {
+      console.error('Section card template not found');
+      grid.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc2626;">Error: Template not found</div>';
+      return;
+    }
+    
+    const L = i18n[currentLang].labels;
+    grid.innerHTML = ""; // Clear loading
 
-  for (const s of SECTIONS) {
+    for (const s of SECTIONS) {
     const t = sectionText(s);
     const node = tpl.content.cloneNode(true);
 
@@ -1022,10 +1453,15 @@ async function render() {
           reviewer,
           approver,
           version,
-          status,
-        };
-        await idbSet(STORE_META, s.code, updatedMeta);
+        status,
+      };
+      try {
+        await API.updateSectionMeta(s.code, updatedMeta);
         await render();
+      } catch (error) {
+        console.error('Error updating metadata:', error);
+        alert(error.message || 'Failed to update metadata');
+      }
       });
     }
 
@@ -1077,12 +1513,13 @@ async function render() {
         removeBtn.textContent = L.linkRemove;
         removeBtn.disabled = isViewer;
         removeBtn.addEventListener("click", async () => {
-          const m = (await getSectionMeta(s.code)) || {};
-          const arr = Array.isArray(m.links) ? m.links : [];
-          arr.splice(idx, 1);
-          m.links = arr;
-          await idbSet(STORE_META, s.code, m);
-          await render();
+          try {
+            await API.removeSectionLink(s.code, link.id);
+            await render();
+          } catch (error) {
+            console.error('Error removing link:', error);
+            alert(error.message || 'Failed to remove link');
+          }
         });
 
         actions.appendChild(openBtn);
@@ -1101,15 +1538,25 @@ async function render() {
       if (!title) return;
       const url = prompt(L.linkUrlPrompt);
       if (!url) return;
-      const m = (await getSectionMeta(s.code)) || {};
-      const arr = Array.isArray(m.links) ? m.links : [];
-      arr.push({ title, url });
-      m.links = arr;
-      await idbSet(STORE_META, s.code, m);
-      await render();
+      try {
+        await API.addSectionLink(s.code, title, url);
+        await render();
+      } catch (error) {
+        console.error('Error adding link:', error);
+        alert(error.message || 'Failed to add link');
+      }
     });
 
     grid.appendChild(node);
+    }
+    
+    console.log(`Rendered ${SECTIONS.length} sections`);
+  } catch (error) {
+    console.error('Render error:', error);
+    const grid = document.getElementById("sectionsGrid");
+    if (grid) {
+      grid.innerHTML = `<div style="padding: 2rem; text-align: center; color: #dc2626;">Error rendering: ${error.message}</div>`;
+    }
   }
 }
 
@@ -1126,19 +1573,13 @@ document.getElementById("btnLang").addEventListener("click", () => {
   setLang(currentLang === "ar" ? "en" : "ar");
 });
 
-document.getElementById("btnExport").addEventListener("click", async () => {
-  const payload = await exportBackup();
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-  downloadBlob(blob, `DI_PLATFORM_BACKUP_${new Date().toISOString().slice(0,10)}.json`);
+// Export/Import removed - use backend API directly
+document.getElementById("btnExport").addEventListener("click", () => {
+  alert("Export functionality moved to backend. Use API endpoints or admin panel.");
 });
 
-document.getElementById("importFile").addEventListener("change", async (e) => {
-  const f = e.target.files && e.target.files[0];
-  if (!f) return;
-  const text = await f.text();
-  const payload = JSON.parse(text);
-  await importBackup(payload);
-  await render();
+document.getElementById("importFile").addEventListener("change", () => {
+  alert("Import functionality moved to backend. Use API endpoints or admin panel.");
 });
 
 document.getElementById("guideOverlay").addEventListener("click", () => closeGuide());
@@ -1177,6 +1618,124 @@ if (roleSelectEl) {
   });
 }
 
-// First paint
-setLang("ar");
+// Check authentication on load
+async function checkAuth() {
+  try {
+    const user = API.getCurrentUser();
+    if (!user) {
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Auth check error:', error);
+    return false;
+  }
+}
+
+function showLoginModal() {
+  const modal = document.getElementById('loginModal');
+  if (!modal) {
+    console.warn('Login modal not found - continuing without auth');
+    return;
+  }
+  
+  const form = document.getElementById('loginForm');
+  const errorDiv = document.getElementById('loginError');
+  const title = document.getElementById('loginTitle');
+  
+  modal.style.display = 'flex';
+  if (title) {
+    title.textContent = currentLang === 'ar' ? 'تسجيل الدخول' : 'Login';
+  }
+  
+  if (form) {
+    // Remove old listeners
+    const newForm = form.cloneNode(true);
+    form.parentNode.replaceChild(newForm, form);
+    
+    newForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (errorDiv) errorDiv.textContent = '';
+      
+      const usernameEl = document.getElementById('loginUsername');
+      const passwordEl = document.getElementById('loginPassword');
+      const username = usernameEl ? usernameEl.value.trim() : '';
+      const password = passwordEl ? passwordEl.value : '';
+      
+      if (!username || !password) {
+        if (errorDiv) errorDiv.textContent = 'Username and password required';
+        return;
+      }
+      
+      try {
+        await API.login(username, password);
+        modal.style.display = 'none';
+        const user = API.getCurrentUser();
+        if (user) {
+          currentRole = user.role || 'admin';
+        }
+        updateRoleUi();
+        await render();
+      } catch (error) {
+        console.error('Login error:', error);
+        if (errorDiv) {
+          errorDiv.textContent = error.message || 'Login failed. Try: admin / admin123';
+        }
+      }
+    });
+  }
+}
+
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
+
+async function initApp() {
+  try {
+    // Wait for DOM elements
+    const grid = document.getElementById("sectionsGrid");
+    const tpl = document.getElementById("sectionCardTpl");
+    
+    if (!grid || !tpl) {
+      console.log('Waiting for DOM elements...');
+      setTimeout(initApp, 50);
+      return;
+    }
+    
+    console.log('✓ DOM ready, initializing app...');
+    
+    // Always initialize UI first
+    setLang("ar");
+    
+    // Then check auth (non-blocking, don't wait)
+    checkAuth().then((isAuth) => {
+      if (isAuth) {
+        const user = API.getCurrentUser();
+        if (user) {
+          currentRole = user.role || 'admin';
+        }
+        updateRoleUi();
+        console.log('✓ Authenticated as:', currentRole);
+      } else {
+        console.log('ℹ Not authenticated, showing login modal');
+        showLoginModal();
+      }
+    }).catch((err) => {
+      console.warn('Auth check failed, continuing without auth:', err);
+      showLoginModal();
+    });
+  } catch (error) {
+    console.error('✗ Initialization error:', error);
+    // Show UI anyway - user can login
+    try {
+      setLang("ar");
+      showLoginModal();
+    } catch (e) {
+      console.error('✗ Failed to show UI:', e);
+    }
+  }
+}
 
