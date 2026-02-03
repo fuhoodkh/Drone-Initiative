@@ -2285,9 +2285,14 @@ async function initApp() {
     
     console.log('✅ DOM elements ready');
     
-    // Set user role
+    // Set user role - start with user's actual role
     currentRole = user.role || 'admin';
     console.log('✅ Current role set to:', currentRole);
+    
+    // Update role selector to show user's actual role
+    if (roleSelectEl) {
+      roleSelectEl.value = currentRole;
+    }
     
     // Initialize UI
     console.log('✅ Initializing UI...');
