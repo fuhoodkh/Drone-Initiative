@@ -119,6 +119,43 @@ async function initializeApp() {
     // Initialize database
     await initDb();
     console.log('✓ Database initialized');
+    
+    // Check if users exist, if not create default users
+    const { dbGet, dbRun } = await import('./db.js');
+    const userCount = await dbGet('SELECT COUNT(*) as count FROM users');
+    
+    if (!userCount || userCount.count === 0) {
+      console.log('⚠️ No users found, creating default users...');
+      const bcrypt = (await import('bcryptjs')).default;
+      
+      const defaultUsers = [
+        { username: 'admin', password: 'admin123', role: 'admin' },
+        { username: 'hazaa', password: 'admin123', role: 'admin' },
+        { username: 'ghaida', password: 'editor123', role: 'editor' },
+        { username: 'Reham', password: 'editor123', role: 'editor' }
+      ];
+      
+      for (const user of defaultUsers) {
+        try {
+          const hashedPassword = await bcrypt.hash(user.password, 10);
+          await dbRun(
+            'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
+            [user.username, hashedPassword, user.role]
+          );
+          console.log(`✓ Created user: ${user.username} (${user.role})`);
+        } catch (err) {
+          if (err.message.includes('UNIQUE')) {
+            console.log(`⚠️ User ${user.username} already exists`);
+          } else {
+            console.error(`❌ Error creating user ${user.username}:`, err.message);
+          }
+        }
+      }
+      console.log('✅ Default users initialization complete');
+    } else {
+      console.log(`✓ Found ${userCount.count} existing user(s)`);
+    }
+    
     dbInitialized = true;
   } catch (error) {
     console.error('❌ Failed to initialize app:', error);
