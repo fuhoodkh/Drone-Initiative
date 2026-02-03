@@ -21,3 +21,4 @@ services:
       name: drone-initiative-disk
       mountPath: /opt/render/project/src/server/data
       sizeGB: 10
+    packageManager: npm

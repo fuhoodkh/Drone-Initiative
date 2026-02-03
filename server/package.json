@@ -4,6 +4,7 @@
   "description": "Backend API for Drone Initiative document management platform",
   "main": "server.js",
   "type": "module",
+  "license": "ISC",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
