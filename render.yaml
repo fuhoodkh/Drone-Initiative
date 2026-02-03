@@ -13,4 +13,11 @@ services:
       - key: PORT
         value: 3000
     healthCheckPath: /api/health
-    plan: starter
+    plan: professional
+    region: oman
+    instanceType: professional
+    autoDeploy: true
+    disk:
+      name: drone-initiative-disk
+      mountPath: /opt/render/project/src/server/data
+      sizeGB: 10

@@ -18,10 +18,11 @@ const PORT = process.env.PORT || 3000;
 
 // Ensure uploads directory exists
 // For Vercel: use /tmp/uploads (only writable location)
+// For Render: use persistent disk if available, otherwise server/uploads
 // For local: use server/uploads
 const UPLOADS_DIR = process.env.VERCEL 
   ? '/tmp/uploads' 
-  : path.join(__dirname, 'uploads');
+  : (process.env.RENDER_DISK_PATH ? path.join(process.env.RENDER_DISK_PATH, 'uploads') : path.join(__dirname, 'uploads'));
 
 // Middleware
 app.use(cors());

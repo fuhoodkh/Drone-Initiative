@@ -17,10 +17,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // For Vercel: use /tmp for database (only writable location)
+// For Render: use persistent disk if mounted, otherwise data directory
 // For local: use data directory
 const DB_DIR = process.env.VERCEL 
   ? '/tmp/data' 
-  : path.join(__dirname, 'data');
+  : (process.env.RENDER_DISK_PATH || path.join(__dirname, 'data'));
 const DB_PATH = path.join(DB_DIR, 'platform.db');
 
 let db = null;
