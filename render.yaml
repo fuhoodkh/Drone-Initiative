@@ -3,8 +3,8 @@ services:
     name: drone-initiative-platform
     env: node
     rootDir: server
-    buildCommand: npm install --prefix server
-    startCommand: npm start --prefix server
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
