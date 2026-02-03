@@ -2117,22 +2117,60 @@ document.getElementById("guideCloseBtn").addEventListener("click", () => closeGu
 const roleSelectEl = document.getElementById("roleSelect");
 function updateRoleUi() {
   const L = i18n[currentLang].labels;
-  const isViewer = currentRole === "viewer";
-
+  const user = API.getCurrentUser();
+  const userRole = user ? user.role : 'admin';
+  
+  // Always show role selector, but limit options based on user's actual role
   if (roleSelectEl) {
-    // Viewers should come from URL link; hide selector for them
-    if (isViewer) {
-      roleSelectEl.classList.add("hidden");
-    } else {
-      roleSelectEl.classList.remove("hidden");
-      roleSelectEl.value = currentRole;
+    roleSelectEl.classList.remove("hidden");
+    
+    // Update available options based on user's actual role
+    const options = roleSelectEl.options;
+    if (options.length >= 3) {
+      // Admin can switch to all roles
+      if (userRole === 'admin') {
+        options[0].disabled = false;
+        options[1].disabled = false;
+        options[2].disabled = false;
+      }
+      // Editor can switch to editor or viewer (not admin)
+      else if (userRole === 'editor') {
+        options[0].disabled = true;
+        options[1].disabled = false;
+        options[2].disabled = false;
+      }
+      // Viewer can only be viewer
+      else {
+        options[0].disabled = true;
+        options[1].disabled = true;
+        options[2].disabled = false;
+      }
     }
+    
+    // Set current role, but ensure it matches user's actual role if switching back
+    roleSelectEl.value = currentRole;
   }
 }
 
 if (roleSelectEl) {
   roleSelectEl.addEventListener("change", () => {
-    currentRole = roleSelectEl.value || "admin";
+    const user = API.getCurrentUser();
+    const userRole = user ? user.role : 'admin';
+    const selectedRole = roleSelectEl.value || userRole;
+    
+    // Only allow switching to roles the user has permission for
+    if (userRole === 'admin') {
+      // Admin can switch to any role
+      currentRole = selectedRole;
+    } else if (userRole === 'editor') {
+      // Editor can switch to editor or viewer, not admin
+      currentRole = selectedRole === 'admin' ? 'editor' : selectedRole;
+    } else {
+      // Viewer can only be viewer
+      currentRole = 'viewer';
+    }
+    
+    roleSelectEl.value = currentRole;
     updateRoleUi();
     render();
   });
