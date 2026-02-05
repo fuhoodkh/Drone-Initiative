@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import { initDb } from './db.js';
+import { migrateSections } from './migrate-sections.js';
 import { authRouter } from './routes/auth.js';
 import { sectionsRouter } from './routes/sections.js';
 import { sectionDefinitionsRouter } from './routes/section-definitions.js';
@@ -122,6 +123,18 @@ async function initializeApp() {
     // Initialize database
     await initDb();
     console.log('✓ Database initialized');
+    
+    // Migrate sections from FALLBACK_SECTIONS if sections table is empty
+    // This preserves all existing metadata, links, and permissions
+    try {
+      const result = await migrateSections();
+      if (result.migrated > 0) {
+        console.log(`✅ Migrated ${result.migrated} sections from original definitions`);
+      }
+    } catch (error) {
+      console.error('⚠️ Section migration error (non-fatal):', error.message);
+      // Don't fail startup if migration fails - sections might already exist
+    }
     
     // Check if users exist, if not create default users
     const { dbGet, dbRun } = await import('./db.js');
