@@ -115,6 +115,30 @@ export async function initDb() {
           )
         `);
         
+        // Sections definitions table (stores section cards)
+        db.run(`
+          CREATE TABLE IF NOT EXISTS sections (
+            section_code TEXT PRIMARY KEY,
+            phase TEXT NOT NULL,
+            kicker_ar TEXT,
+            title_ar TEXT NOT NULL,
+            purpose_ar TEXT,
+            audience_ar TEXT,
+            how_ar TEXT,
+            kicker_en TEXT,
+            title_en TEXT NOT NULL,
+            purpose_en TEXT,
+            audience_en TEXT,
+            how_en TEXT,
+            guide_ar TEXT,
+            guide_en TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_by TEXT,
+            updated_by TEXT
+          )
+        `);
+        
         // Audit log
         db.run(`
           CREATE TABLE IF NOT EXISTS audit_log (

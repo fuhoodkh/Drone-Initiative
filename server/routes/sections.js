@@ -151,6 +151,43 @@ router.post('/:sectionCode/links', verifyToken, async (req, res) => {
   }
 });
 
+// Update online link (admin/editor only)
+router.put('/:sectionCode/links/:linkId', verifyToken, async (req, res) => {
+  try {
+    const { sectionCode, linkId } = req.params;
+    const { title, url } = req.body;
+    
+    if (req.user.role === 'viewer') {
+      return res.status(403).json({ error: 'Viewers cannot update links' });
+    }
+    
+    if (!title || !url) {
+      return res.status(400).json({ error: 'Title and URL required' });
+    }
+    
+    const existing = await dbGet('SELECT id FROM section_links WHERE id = ? AND section_code = ?', [linkId, sectionCode]);
+    if (!existing) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+    
+    await dbRun(
+      'UPDATE section_links SET title = ?, url = ? WHERE id = ? AND section_code = ?',
+      [title, url, linkId, sectionCode]
+    );
+    
+    // Audit log
+    await dbRun(
+      'INSERT INTO audit_log (section_code, action, user, details) VALUES (?, ?, ?, ?)',
+      [sectionCode, 'link_updated', req.user.username, JSON.stringify({ linkId, title, url })]
+    );
+    
+    res.json({ message: 'Link updated successfully' });
+  } catch (error) {
+    console.error('Error updating link:', error);
+    res.status(500).json({ error: 'Failed to update link' });
+  }
+});
+
 // Remove online link (admin/editor only)
 router.delete('/:sectionCode/links/:linkId', verifyToken, async (req, res) => {
   try {

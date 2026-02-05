@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import { initDb } from './db.js';
 import { authRouter } from './routes/auth.js';
 import { sectionsRouter } from './routes/sections.js';
+import { sectionDefinitionsRouter } from './routes/section-definitions.js';
 import { filesRouter } from './routes/files.js';
 import { permissionsRouter } from './routes/permissions.js';
 
@@ -67,6 +68,7 @@ const upload = multer({
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/sections', sectionsRouter);
+app.use('/api/section-definitions', sectionDefinitionsRouter);
 app.use('/api/files', filesRouter(upload));
 app.use('/api/permissions', permissionsRouter);
 
@@ -74,6 +76,7 @@ app.use('/api/permissions', permissionsRouter);
 console.log('📋 Registered routes:');
 console.log('  - /api/auth/*');
 console.log('  - /api/sections/*');
+console.log('  - /api/section-definitions/* (CRUD for section cards)');
 console.log('  - /api/files/*');
 console.log('  - /api/permissions/*');
 console.log('    ✓ GET /api/permissions/users/list (FIRST - before parameterized routes)');

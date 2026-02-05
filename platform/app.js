@@ -28,7 +28,26 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 500);
 }
 
-const SECTIONS = [
+// Sections will be loaded from backend
+let SECTIONS = [];
+
+// Load sections from backend
+async function loadSections() {
+  try {
+    const sections = await API.getAllSections();
+    console.log('✅ Loaded sections from backend:', sections.length);
+    SECTIONS = sections;
+    return sections;
+  } catch (error) {
+    console.error('❌ Error loading sections from backend:', error);
+    // Fallback to empty array - user will need to create sections
+    SECTIONS = [];
+    return [];
+  }
+}
+
+// Fallback hardcoded sections (for initial setup or if backend fails)
+const FALLBACK_SECTIONS = [
   // Phase 01: Strategy & Approval
   {
     code: "01-STR-PROGRAM_CHARTER",
@@ -1814,6 +1833,276 @@ function showCreateUserModal() {
   }
 }
 
+// Show modal for creating/editing section
+function showSectionModal(sectionCode = null) {
+  try {
+    const L = i18n[currentLang].labels;
+    const isEdit = sectionCode !== null;
+    const section = isEdit ? SECTIONS.find(s => s.code === sectionCode) : null;
+    
+    const modal = document.createElement('div');
+    modal.className = 'metaModal';
+    modal.innerHTML = `
+      <div class="metaModal__overlay"></div>
+      <div class="metaModal__content" style="max-width: 600px; max-height: 90vh; overflow-y: auto;">
+        <div class="metaModal__header">
+          <h3>${isEdit ? (currentLang === 'ar' ? 'تعديل القسم' : 'Edit Section') : (currentLang === 'ar' ? 'إنشاء قسم جديد' : 'Create New Section')}</h3>
+          <button class="metaModal__close">✕</button>
+        </div>
+        <div class="metaModal__body">
+          <form class="metaModal__form" id="sectionForm">
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'رمز القسم' : 'Section Code'} *</label>
+              <input type="text" class="metaModal__input" id="sectionCode" placeholder="e.g., 01-STR-PROGRAM_CHARTER" 
+                     value="${isEdit ? (section?.code || '') : ''}" ${isEdit ? 'readonly' : ''} required />
+              <div class="metaModal__help">${currentLang === 'ar' ? 'رمز فريد للقسم (لا يمكن تغييره بعد الإنشاء)' : 'Unique section code (cannot be changed after creation)'}</div>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'المرحلة' : 'Phase'} *</label>
+              <input type="text" class="metaModal__input" id="sectionPhase" placeholder="e.g., 01_STRATEGY" 
+                     value="${isEdit ? (section?.phase || '') : ''}" required />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'العنوان (عربي)' : 'Title (Arabic)'} *</label>
+              <input type="text" class="metaModal__input" id="titleAr" value="${isEdit ? (section?.titleAr || '') : ''}" required />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'العنوان (إنجليزي)' : 'Title (English)'} *</label>
+              <input type="text" class="metaModal__input" id="titleEn" value="${isEdit ? (section?.titleEn || '') : ''}" required />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الغرض (عربي)' : 'Purpose (Arabic)'}</label>
+              <textarea class="metaModal__input" id="purposeAr" rows="2">${isEdit ? (section?.purposeAr || '') : ''}</textarea>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الغرض (إنجليزي)' : 'Purpose (English)'}</label>
+              <textarea class="metaModal__input" id="purposeEn" rows="2">${isEdit ? (section?.purposeEn || '') : ''}</textarea>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الجمهور (عربي)' : 'Audience (Arabic)'}</label>
+              <textarea class="metaModal__input" id="audienceAr" rows="2">${isEdit ? (section?.audienceAr || '') : ''}</textarea>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الجمهور (إنجليزي)' : 'Audience (English)'}</label>
+              <textarea class="metaModal__input" id="audienceEn" rows="2">${isEdit ? (section?.audienceEn || '') : ''}</textarea>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'كيفية الكتابة (عربي)' : 'How to Write (Arabic)'}</label>
+              <textarea class="metaModal__input" id="howAr" rows="2">${isEdit ? (section?.howAr || '') : ''}</textarea>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'كيفية الكتابة (إنجليزي)' : 'How to Write (English)'}</label>
+              <textarea class="metaModal__input" id="howEn" rows="2">${isEdit ? (section?.howEn || '') : ''}</textarea>
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الكيكر (عربي)' : 'Kicker (Arabic)'}</label>
+              <input type="text" class="metaModal__input" id="kickerAr" value="${isEdit ? (section?.kickerAr || '') : ''}" />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'الكيكر (إنجليزي)' : 'Kicker (English)'}</label>
+              <input type="text" class="metaModal__input" id="kickerEn" value="${isEdit ? (section?.kickerEn || '') : ''}" />
+            </div>
+          </form>
+        </div>
+        <div class="metaModal__footer">
+          <button class="btn btn--secondary metaModal__cancel">${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          ${isEdit ? `<button class="btn btn--danger metaModal__delete">${currentLang === 'ar' ? 'حذف' : 'Delete'}</button>` : ''}
+          <button class="btn btn--primary metaModal__save">${isEdit ? (currentLang === 'ar' ? 'حفظ' : 'Save') : (currentLang === 'ar' ? 'إنشاء' : 'Create')}</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Close handlers
+    const close = () => {
+      modal.remove();
+    };
+    modal.querySelector('.metaModal__overlay').addEventListener('click', close);
+    modal.querySelector('.metaModal__close').addEventListener('click', close);
+    modal.querySelector('.metaModal__cancel').addEventListener('click', close);
+    
+    // Delete handler (edit mode only)
+    if (isEdit) {
+      modal.querySelector('.metaModal__delete').addEventListener('click', async () => {
+        if (!confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف هذا القسم؟ سيتم حذف جميع البيانات المرتبطة به.' : 'Are you sure you want to delete this section? All associated data will be deleted.')) {
+          return;
+        }
+        try {
+          await API.deleteSection(sectionCode);
+          alert(currentLang === 'ar' ? 'تم حذف القسم بنجاح' : 'Section deleted successfully');
+          close();
+          await loadSections();
+          await render();
+        } catch (error) {
+          console.error('Error deleting section:', error);
+          alert(error.message || (currentLang === 'ar' ? 'فشل حذف القسم' : 'Failed to delete section'));
+        }
+      });
+    }
+    
+    // Save handler
+    modal.querySelector('.metaModal__save').addEventListener('click', async () => {
+      const code = document.getElementById('sectionCode').value.trim();
+      const phase = document.getElementById('sectionPhase').value.trim();
+      const titleAr = document.getElementById('titleAr').value.trim();
+      const titleEn = document.getElementById('titleEn').value.trim();
+      const purposeAr = document.getElementById('purposeAr').value.trim();
+      const purposeEn = document.getElementById('purposeEn').value.trim();
+      const audienceAr = document.getElementById('audienceAr').value.trim();
+      const audienceEn = document.getElementById('audienceEn').value.trim();
+      const howAr = document.getElementById('howAr').value.trim();
+      const howEn = document.getElementById('howEn').value.trim();
+      const kickerAr = document.getElementById('kickerAr').value.trim();
+      const kickerEn = document.getElementById('kickerEn').value.trim();
+      
+      if (!code || !phase || !titleAr || !titleEn) {
+        alert(currentLang === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
+        return;
+      }
+      
+      try {
+        const sectionData = {
+          code, phase, titleAr, titleEn,
+          purposeAr: purposeAr || null,
+          purposeEn: purposeEn || null,
+          audienceAr: audienceAr || null,
+          audienceEn: audienceEn || null,
+          howAr: howAr || null,
+          howEn: howEn || null,
+          kickerAr: kickerAr || null,
+          kickerEn: kickerEn || null
+        };
+        
+        if (isEdit) {
+          await API.updateSection(sectionCode, sectionData);
+          alert(currentLang === 'ar' ? 'تم تحديث القسم بنجاح' : 'Section updated successfully');
+        } else {
+          await API.createSection(sectionData);
+          alert(currentLang === 'ar' ? 'تم إنشاء القسم بنجاح' : 'Section created successfully');
+        }
+        close();
+        await loadSections();
+        await render();
+      } catch (error) {
+        console.error('Error saving section:', error);
+        alert(error.message || (currentLang === 'ar' ? 'فشل حفظ القسم' : 'Failed to save section'));
+      }
+    });
+  } catch (error) {
+    console.error('Error showing section modal:', error);
+    alert(error.message || 'Failed to show section form');
+  }
+}
+
+// Show modal for editing link
+function showEditLinkModal(sectionCode, linkId, currentTitle, currentUrl) {
+  try {
+    const L = i18n[currentLang].labels;
+    
+    const modal = document.createElement('div');
+    modal.className = 'metaModal';
+    modal.innerHTML = `
+      <div class="metaModal__overlay"></div>
+      <div class="metaModal__content">
+        <div class="metaModal__header">
+          <h3>${currentLang === 'ar' ? 'تعديل الرابط' : 'Edit Link'}</h3>
+          <button class="metaModal__close">✕</button>
+        </div>
+        <div class="metaModal__body">
+          <form class="metaModal__form" id="editLinkForm">
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'عنوان المستند' : 'Document Title'} *</label>
+              <input type="text" class="metaModal__input" id="editLinkTitle" value="${escapeHtml(currentTitle)}" required />
+            </div>
+            <div class="metaModal__field">
+              <label class="metaModal__label">${currentLang === 'ar' ? 'رابط المستند' : 'Document URL'} *</label>
+              <input type="url" class="metaModal__input" id="editLinkUrl" value="${escapeHtml(currentUrl)}" required />
+              <div class="metaModal__help">${currentLang === 'ar' ? 'رابط Google Docs أو Drive' : 'Google Docs or Drive link'}</div>
+            </div>
+          </form>
+        </div>
+        <div class="metaModal__footer">
+          <button class="btn btn--secondary metaModal__cancel">${currentLang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+          <button class="btn btn--danger metaModal__delete">${currentLang === 'ar' ? 'حذف' : 'Delete'}</button>
+          <button class="btn btn--primary metaModal__save">${currentLang === 'ar' ? 'حفظ' : 'Save'}</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    
+    // Focus on title input
+    setTimeout(() => {
+      const titleInput = document.getElementById('editLinkTitle');
+      if (titleInput) titleInput.focus();
+    }, 100);
+    
+    // Close handlers
+    const close = () => {
+      modal.remove();
+    };
+    modal.querySelector('.metaModal__overlay').addEventListener('click', close);
+    modal.querySelector('.metaModal__close').addEventListener('click', close);
+    modal.querySelector('.metaModal__cancel').addEventListener('click', close);
+    
+    // Delete handler
+    modal.querySelector('.metaModal__delete').addEventListener('click', async () => {
+      if (!confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف هذا الرابط؟' : 'Are you sure you want to delete this link?')) {
+        return;
+      }
+      try {
+        await API.removeSectionLink(sectionCode, linkId);
+        alert(currentLang === 'ar' ? 'تم حذف الرابط بنجاح' : 'Link deleted successfully');
+        close();
+        await render();
+      } catch (error) {
+        console.error('Error deleting link:', error);
+        alert(error.message || (currentLang === 'ar' ? 'فشل حذف الرابط' : 'Failed to delete link'));
+      }
+    });
+    
+    // Save handler
+    modal.querySelector('.metaModal__save').addEventListener('click', async () => {
+      const title = document.getElementById('editLinkTitle').value.trim();
+      const url = document.getElementById('editLinkUrl').value.trim();
+      
+      if (!title) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال عنوان المستند' : 'Please enter a document title');
+        return;
+      }
+      
+      if (!url) {
+        alert(currentLang === 'ar' ? 'يرجى إدخال رابط المستند' : 'Please enter a document URL');
+        return;
+      }
+      
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch (e) {
+        alert(currentLang === 'ar' ? 'الرابط غير صحيح. يرجى إدخال رابط صحيح (يبدأ بـ http:// أو https://)' : 'Invalid URL. Please enter a valid URL (starting with http:// or https://)');
+        return;
+      }
+      
+      try {
+        await API.updateSectionLink(sectionCode, linkId, title, url);
+        alert(currentLang === 'ar' ? 'تم تحديث الرابط بنجاح' : 'Link updated successfully');
+        close();
+        await render();
+      } catch (error) {
+        console.error('Error updating link:', error);
+        alert(error.message || (currentLang === 'ar' ? 'فشل تحديث الرابط' : 'Failed to update link'));
+      }
+    });
+  } catch (error) {
+    console.error('Error showing edit link modal:', error);
+    alert(error.message || 'Failed to show edit link form');
+  }
+}
+
 async function render() {
   try {
     const grid = document.getElementById("sectionsGrid");
@@ -1831,6 +2120,9 @@ async function render() {
       grid.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc2626;">Error: Template not found</div>';
       return;
     }
+    
+    // Load sections from backend
+    await loadSections();
     
     // Get accessible sections based on user role
     let accessibleSections = [];
@@ -1917,6 +2209,53 @@ async function render() {
     node.querySelector("[data-label-how]").textContent = L.how;
     node.querySelector("[data-how]").textContent = t.how;
 
+    // Add edit/delete buttons for section (admin/editor only)
+    const isViewer = currentRole === "viewer";
+    const user = API.getCurrentUser();
+    if (!isViewer) {
+      const headMeta = node.querySelector(".card__headMeta");
+      if (headMeta) {
+        const sectionActions = document.createElement("div");
+        sectionActions.style.cssText = "display: flex; gap: 4px; margin-left: 8px;";
+        
+        const editSectionBtn = document.createElement("button");
+        editSectionBtn.className = "btn btn--ghost btn--sm";
+        editSectionBtn.innerHTML = "✏️";
+        editSectionBtn.title = currentLang === 'ar' ? 'تعديل القسم' : 'Edit Section';
+        editSectionBtn.addEventListener("click", () => {
+          showSectionModal(s.code);
+        });
+        
+        sectionActions.appendChild(editSectionBtn);
+        
+        // Only show delete for admins
+        if (user && user.role === 'admin') {
+          const deleteSectionBtn = document.createElement("button");
+          deleteSectionBtn.className = "btn btn--ghost btn--sm";
+          deleteSectionBtn.innerHTML = "🗑️";
+          deleteSectionBtn.title = currentLang === 'ar' ? 'حذف القسم' : 'Delete Section';
+          deleteSectionBtn.style.color = "#dc2626";
+          deleteSectionBtn.addEventListener("click", async () => {
+            if (!confirm(currentLang === 'ar' ? 'هل أنت متأكد من حذف هذا القسم؟ سيتم حذف جميع البيانات المرتبطة به.' : 'Are you sure you want to delete this section? All associated data will be deleted.')) {
+              return;
+            }
+            try {
+              await API.deleteSection(s.code);
+              alert(currentLang === 'ar' ? 'تم حذف القسم بنجاح' : 'Section deleted successfully');
+              await loadSections();
+              await render();
+            } catch (error) {
+              console.error('Error deleting section:', error);
+              alert(error.message || (currentLang === 'ar' ? 'فشل حذف القسم' : 'Failed to delete section'));
+            }
+          });
+          sectionActions.appendChild(deleteSectionBtn);
+        }
+        
+        headMeta.appendChild(sectionActions);
+      }
+    }
+
     const uploadInput = node.querySelector("[data-upload]");
     const uploadText = node.querySelector("[data-upload-text]");
     const downloadBtn = node.querySelector("[data-download]");
@@ -1931,8 +2270,6 @@ async function render() {
     clearBtn.textContent = L.clear;
     linksLabel.textContent = L.onlineDocs;
     linkAddBtn.textContent = L.addLink;
-
-    const isViewer = currentRole === "viewer";
 
     const meta = await getSectionMeta(s.code);
     const statusKey = (meta && meta.status) || "draft";
@@ -2049,6 +2386,15 @@ async function render() {
           if (link.url) window.open(link.url, "_blank", "noopener,noreferrer");
         });
 
+        const editBtn = document.createElement("button");
+        editBtn.className = "btn btn--secondary btn--sm";
+        editBtn.textContent = currentLang === 'ar' ? 'تعديل' : 'Edit';
+        editBtn.disabled = isViewer;
+        editBtn.addEventListener("click", () => {
+          if (isViewer) return;
+          showEditLinkModal(s.code, link.id, link.title || link.url, link.url);
+        });
+
         const removeBtn = document.createElement("button");
         removeBtn.className = "btn btn--ghost btn--sm";
         removeBtn.textContent = L.linkRemove;
@@ -2064,6 +2410,7 @@ async function render() {
         });
 
         actions.appendChild(openBtn);
+        if (!isViewer) actions.appendChild(editBtn);
         actions.appendChild(removeBtn);
         row.appendChild(titleSpan);
         row.appendChild(actions);
@@ -2149,6 +2496,28 @@ function updateRoleUi() {
     
     // Set current role, but ensure it matches user's actual role if switching back
     roleSelectEl.value = currentRole;
+  }
+  
+  // Show/hide create section button (admin/editor only)
+  const createSectionBtn = document.getElementById('btnCreateSection');
+  if (createSectionBtn) {
+    if (userRole === 'admin' || userRole === 'editor') {
+      createSectionBtn.style.display = 'inline-block';
+      createSectionBtn.textContent = currentLang === 'ar' ? '+ قسم' : '+ Section';
+    } else {
+      createSectionBtn.style.display = 'none';
+    }
+  }
+  
+  // Show/hide create user button (admin only)
+  const createUserBtn = document.getElementById('btnCreateUser');
+  if (createUserBtn) {
+    if (userRole === 'admin') {
+      createUserBtn.style.display = 'inline-block';
+      createUserBtn.textContent = currentLang === 'ar' ? '+ مستخدم' : '+ User';
+    } else {
+      createUserBtn.style.display = 'none';
+    }
   }
 }
 
@@ -2303,6 +2672,14 @@ async function initApp() {
     const logoutBtn = document.getElementById('btnLogout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', logout);
+    }
+    
+    // Set up create section button (admin/editor only)
+    const createSectionBtn = document.getElementById('btnCreateSection');
+    if (createSectionBtn) {
+      createSectionBtn.addEventListener('click', () => {
+        showSectionModal(null);
+      });
     }
     
     // Set up create user button (admin only)

@@ -167,8 +167,40 @@ export async function addSectionLink(sectionCode, title, url) {
   return apiRequest('POST', `/sections/${sectionCode}/links`, { title, url });
 }
 
+export async function updateSectionLink(sectionCode, linkId, title, url) {
+  return apiRequest('PUT', `/sections/${sectionCode}/links/${linkId}`, { title, url });
+}
+
 export async function removeSectionLink(sectionCode, linkId) {
   return apiRequest('DELETE', `/sections/${sectionCode}/links/${linkId}`);
+}
+
+// Section Definitions (CRUD for section cards)
+export async function getAllSections() {
+  return apiRequest('GET', '/section-definitions');
+}
+
+export async function getSectionDefinition(sectionCode) {
+  try {
+    return await apiRequest('GET', `/section-definitions/${sectionCode}`);
+  } catch (error) {
+    if (error.message.includes('404') || error.message.includes('not found')) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function createSection(sectionData) {
+  return apiRequest('POST', '/section-definitions', sectionData);
+}
+
+export async function updateSection(sectionCode, sectionData) {
+  return apiRequest('PUT', `/section-definitions/${sectionCode}`, sectionData);
+}
+
+export async function deleteSection(sectionCode) {
+  return apiRequest('DELETE', `/section-definitions/${sectionCode}`);
 }
 
 // Permissions
